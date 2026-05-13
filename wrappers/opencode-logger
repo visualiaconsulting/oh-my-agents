@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# opencode-logger — Unix shim for the OpenCode logging wrapper
+# Calls the Python wrapper script with all arguments passed through.
+python3 "$(dirname "$0")/opencode_logger.py" "$@"

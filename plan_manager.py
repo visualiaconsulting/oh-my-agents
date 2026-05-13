@@ -12,10 +12,10 @@ class PlanManager:
     # Using registry IDs (provider/model-id) that OpenCode recognizes
     PLAN_MODELS = {
         "go": {
-            "orchestrator": "opencode-go/kimi-k2.6",
-            "code-analyst": "opencode-go/deepseek-v4-pro",
+            "orchestrator": "opencode-go/deepseek-v4-pro",
+            "code-analyst": "opencode-go/deepseek-v4-flash",
             "validator": "opencode-go/mimo-v2.5-pro",
-            "bulk-processor": "opencode-go/deepseek-v4-flash",
+            "bulk-processor": "opencode-go/minimax-m2.7",
             "subagent": "opencode-go/glm-5.1",
             "summarizer": "opencode-go/minimax-m2.5",
             "frontend": "opencode-go/qwen3.6-plus",
@@ -67,10 +67,10 @@ class PlanManager:
             "fallback": os.getenv("FALLBACK_MODEL", "openai/gpt-4o-mini")
         },
         "enterprise": {
-            "orchestrator": os.getenv("ENT_ORCHESTRATOR", "opencode-go/kimi-k2.6"),
-            "code-analyst": os.getenv("ENT_ANALYST", "opencode-go/deepseek-v4-pro"),
+            "orchestrator": os.getenv("ENT_ORCHESTRATOR", "opencode-go/deepseek-v4-pro"),
+            "code-analyst": os.getenv("ENT_ANALYST", "opencode-go/deepseek-v4-flash"),
             "validator": os.getenv("ENT_VALIDATOR", "opencode-go/mimo-v2.5-pro"),
-            "bulk-processor": os.getenv("ENT_BULK", "opencode-go/deepseek-v4-flash"),
+            "bulk-processor": os.getenv("ENT_BULK", "opencode-go/minimax-m2.7"),
             "subagent": os.getenv("ENT_SUBAGENT", "opencode-go/glm-5.1"),
             "summarizer": os.getenv("ENT_SUMMARIZER", "opencode-go/minimax-m2.5"),
             "frontend": os.getenv("ENT_FRONTEND", "opencode-go/qwen3.6-plus"),
@@ -78,13 +78,13 @@ class PlanManager:
             "fallback": os.getenv("ENT_FALLBACK", "opencode-go/minimax-m2.5")
         },
         "openrouter": {
-            "orchestrator": os.getenv("OR_OPENROUTER", "openrouter/anthropic/claude-sonnet-4.5"),
-            "code-analyst": os.getenv("OR_ANALYST", "openrouter/google/gemini-2.5-pro"),
-            "validator": os.getenv("OR_VALIDATOR", "openrouter/anthropic/claude-haiku-4.5"),
-            "bulk-processor": os.getenv("OR_BULK", "openrouter/deepseek/deepseek-v3"),
+            "orchestrator": os.getenv("OR_OPENROUTER", "openrouter/deepseek/deepseek-v3"),
+            "code-analyst": os.getenv("OR_ANALYST", "openrouter/deepseek/deepseek-v3"),
+            "validator": os.getenv("OR_VALIDATOR", "openrouter/qwen/qwen-2.5-72b-instruct"),
+            "bulk-processor": os.getenv("OR_BULK", "openrouter/qwen/qwen-2.5-32b-instruct"),
             "subagent": os.getenv("OR_SUBAGENT", "openrouter/meta-llama/llama-3.3-70b"),
             "summarizer": os.getenv("OR_SUMMARIZER", "openrouter/openai/gpt-4o-mini"),
-            "frontend": os.getenv("OR_FRONTEND", "openrouter/qwen/qwen-2.5-32b"),
+            "frontend": os.getenv("OR_FRONTEND", "openrouter/qwen/qwen-2.5-32b-instruct"),
             "ml-specialist": os.getenv("OR_ML", "openrouter/openai/gpt-4o-mini"),
             "fallback": os.getenv("OR_FALLBACK", "openrouter/openai/gpt-4o-mini")
         },

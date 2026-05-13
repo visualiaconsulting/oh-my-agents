@@ -15,3 +15,14 @@ build/
 
 # Test artifacts
 .pytest_cache/
+
+# Sensitive files (security audit recommendation)
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.*
+secrets.*
+.env.local
+.env.production
+.env.*.local

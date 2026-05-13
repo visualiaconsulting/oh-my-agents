@@ -6,7 +6,7 @@
 
 [![OpenCode](https://img.shields.io/badge/Built_for-OpenCode_Go-00D4AA?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyTDIgN2wxMCA1IDEwLTVNMiAxN2wxMCA1IDEwLTVNMiAxMmwxMCA1IDEwLTUiLz48L3N2Zz4=)](https://opencode.ai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.5.0-blue?style=for-the-badge)](https://github.com/visualiaconsulting/oh-my-agents/releases/tag/v1.5.0)
+[![Version](https://img.shields.io/badge/version-1.6.0-blue?style=for-the-badge)](https://github.com/visualiaconsulting/oh-my-agents/releases/tag/v1.6.0)
 [![GitHub Stars](https://img.shields.io/github/stars/visualiaconsulting/oh-my-agents?style=for-the-badge&logo=github)](https://github.com/visualiaconsulting/oh-my-agents/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/visualiaconsulting/oh-my-agents?style=for-the-badge&logo=github)](https://github.com/visualiaconsulting/oh-my-agents/issues)
 
@@ -32,6 +32,42 @@
 | 🔄 **Multi-Plan Support** | Works with OpenCode Go, Zen, API, Enterprise, OpenRouter, Copilot, and Ollama via `PlanManager` |
 | 🚀 **Zero Config Start** | Clone, run setup, start coding. The wizard handles the rest |
 | 📦 **Portable** | Copy agents to any project — they adapt via `context.md` |
+| 🗄️ **Project Database** | SQLite DB per project stores sessions, file changes, errors, commands (v1.6.0) |
+| 🔄 **Auto-Session** | Sessions auto-saved when OpenCode exits — enable with `--auto-enable` (v1.6.0) |
+
+---
+
+### 🔄 Project Continuity & Auto-Session (v1.6.0)
+
+oh-my-agents now automatically tracks your project state across sessions:
+
+| Feature | Description |
+|---------|-------------|
+| **Project Database** | SQLite DB per project stores sessions, file changes, errors, commands |
+| **Auto-Session** | Sessions auto-saved when OpenCode exits (enable with `--auto-enable`) |
+| **Continuity** | Re-entry prompts show pending tasks, recent changes, project health |
+| **Task Tracking** | Track and mark pending tasks across sessions |
+
+**Quick Start:**
+```bash
+# Enable auto-session saving
+python main.py --auto-enable
+
+# After an OpenCode session, check project status
+python main.py --project-status
+
+# View re-entry context from last session
+python main.py --continue
+
+# Check project health
+python main.py --project-health
+```
+
+**How it works:**
+1. `opencode-logger` wrapper captures all OpenCode output to `.opencode/logs/`
+2. On exit, the wrapper auto-parses the log and saves to `.opencode/project.db`
+3. When you return to the project, `--continue` shows what was happening
+4. Pending tasks, errors, and file changes are tracked across sessions
 
 ---
 
@@ -549,6 +585,27 @@ oh-my-agents/
 ---
 
 ## 📝 Changelog
+
+### v1.6.0 — Project Database & Auto-Session Continuity (May 2026)
+
+**New features:**
+- **ProjectDB (`project_db.py`):** SQLite database per project (`.opencode/project.db`) with tables for sessions, files_changed, errors, commands, and project_meta
+- **Auto-Session:** Automatic session saving when OpenCode exits (enable with `--auto-enable`)
+- **Continuity Manager:** Re-entry prompts, project health reports, pending task tracking
+- **Project Hash:** Deterministic SHA-256 hash for project identity across sessions
+
+**New CLI commands:**
+| Command | Description |
+|---------|-------------|
+| `--auto-enable` | Enable automatic session saving |
+| `--auto-disable` | Disable automatic session saving |
+| `--project-status` | Show project continuity status |
+| `--project-health` | Show project health report |
+| `--continue` | Show re-entry context from last session |
+| `--list-tasks` | List pending tasks |
+| `--complete-task <index>` | Mark a pending task as complete |
+
+**Production usage:** The system is being used successfully in the RoadFlow project for session continuity and automatic state tracking.
 
 ### v1.5.0 — MCP Integration & Auto-Skills (Feature Branch)
 

@@ -20,11 +20,11 @@ def temp_project():
 name: orchestrator
 description: Central system orchestrator
 mode: primary
-model: opencode-go/kimi-k2.6
+model: opencode-go/deepseek-v4-pro
 temperature: 0.2
 permission:
   edit: deny
-  bash: deny
+  bash: allow
   read: allow
   task: allow
 ---
@@ -35,7 +35,7 @@ Central system orchestrator.
 name: code-analyst
 description: Senior software engineer
 mode: subagent
-model: opencode-go/deepseek-v4-pro
+model: opencode-go/deepseek-v4-flash
 temperature: 0.2
 permission:
   edit: allow

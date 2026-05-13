@@ -199,7 +199,10 @@ class SkillRegistry:
             return False
 
     def _install_from_skills_sh(self, identifier: str) -> bool:
-        """Install a skill from skills.sh by downloading from GitHub."""
+        """Install a skill from skills.sh by downloading from GitHub.
+        
+        Tries multiple URL patterns to find the skill file.
+        """
         try:
             import requests
         except ImportError:
@@ -213,20 +216,41 @@ class SkillRegistry:
         repo = parts[1]
         skill_name = parts[2] if len(parts) > 2 else repo
 
-        github_url = f"https://raw.githubusercontent.com/{owner}/{repo}/main/{skill_name}.md"
-        alt_url = f"https://raw.githubusercontent.com/{owner}/{repo}/master/{skill_name}.md"
+        # Define candidate URL patterns
+        # 1. Direct file in root (original)
+        # 2. In skills/ directory as [skill_name].md
+        # 3. In skills/[skill_name]/SKILL.md (neondatabase style)
+        # 4. In plugins/*/skills/[skill_name]/SKILL.md (wshobson style)
+        
+        base_github = f"https://raw.githubusercontent.com/{owner}/{repo}"
+        
+        # We'll try both main and master branches
+        branches = ["main", "master"]
+        
+        patterns = [
+            "{base}/{branch}/{name}.md",
+            "{base}/{branch}/skills/{name}.md",
+            "{base}/{branch}/skills/{name}/SKILL.md",
+        ]
+        
+        # Special case for wshobson-style plugins (requires searching, but we'll try common ones)
+        common_plugins = ["python-development", "javascript-development", "backend-development", "developer-essentials"]
+        for plugin in common_plugins:
+            patterns.append(f"{{base}}/{{branch}}/plugins/{plugin}/skills/{{name}}/SKILL.md")
 
-        for url in [github_url, alt_url]:
-            try:
-                response = requests.get(url, timeout=15)
-                if response.status_code == 200:
-                    content = response.text
-                    target = self.skills_dir / f"{skill_name}.md"
-                    with open(target, "w", encoding="utf-8") as f:
-                        f.write(content)
-                    return True
-            except Exception:
-                continue
+        for branch in branches:
+            for pattern in patterns:
+                url = pattern.format(base=base_github, branch=branch, name=skill_name)
+                try:
+                    response = requests.get(url, timeout=10)
+                    if response.status_code == 200:
+                        content = response.text
+                        target = self.skills_dir / f"{skill_name}.md"
+                        with open(target, "w", encoding="utf-8") as f:
+                            f.write(content)
+                        return True
+                except Exception:
+                    continue
 
         return False
 

@@ -3,9 +3,13 @@ utils.py — Cross-platform helpers for oh-my-agents
 
 Windows-first, Linux-ready. All path operations use pathlib for portability.
 """
+import os
 import sys
 import json
+import re
 import uuid
+import hashlib
+import subprocess
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -76,6 +80,35 @@ def get_skills_dir(project_root: Optional[Path] = None) -> Path:
 def get_logs_dir(project_root: Optional[Path] = None) -> Path:
     """Return the .opencode/logs directory path."""
     return get_opencode_dir(project_root) / "logs"
+
+
+def get_logs_dir_candidates(project_root: Optional[Path] = None) -> list[Path]:
+    """Return candidate log directories in priority order.
+
+    Searches these locations (first existing wins):
+    a. project_root/.opencode/logs (if project_root provided)
+    b. Path.home() / ".opencode" / "logs"
+    c. On Windows: %APPDATA%/opencode/logs
+    d. On Windows: %LOCALAPPDATA%/opencode/logs
+    e. Path.home() / ".config" / "opencode" / "logs" (XDG fallback)
+
+    Returns only paths that exist and are valid.
+    """
+    candidates = []
+    if project_root:
+        candidates.append(project_root / ".opencode" / "logs")
+    candidates.append(Path.home() / ".opencode" / "logs")
+    if is_windows():
+        appdata = os.environ.get("APPDATA", "")
+        if appdata:
+            candidates.append(Path(appdata) / "opencode" / "logs")
+        localappdata = os.environ.get("LOCALAPPDATA", "")
+        if localappdata:
+            candidates.append(Path(localappdata) / "opencode" / "logs")
+    candidates.append(Path.home() / ".config" / "opencode" / "logs")
+
+    # Filter to only existing directories, preserving order
+    return [p for p in candidates if p.exists() and p.is_dir()]
 
 
 def get_global_agents_dir() -> Path:
@@ -186,3 +219,130 @@ def update_context_md_file(project_root: Path, section_marker: str, section_cont
         return True
     except OSError:
         return False
+
+
+# ---------------------------------------------------------------------------
+# Project database and auto-session helpers
+# ---------------------------------------------------------------------------
+
+
+def get_project_db_path(project_root: Optional[Path] = None) -> Path:
+    """Return the path to .opencode/project.db within the project.
+
+    Creates the parent .opencode directory if it doesn't exist.
+    """
+    opencode_dir = get_opencode_dir(project_root)
+    opencode_dir.mkdir(parents=True, exist_ok=True)
+    return opencode_dir / "project.db"
+
+
+def generate_project_hash(project_root: Optional[Path] = None) -> str:
+    """Generate a deterministic hash for the project based on its absolute path.
+
+    Uses SHA-256 truncated to 12 characters for a short, stable identifier.
+    """
+    root = (project_root or Path.cwd()).resolve()
+    return hashlib.sha256(str(root).encode()).hexdigest()[:12]
+
+
+def get_current_git_branch(project_root: Optional[Path] = None) -> str:
+    """Detect the current git branch name.
+
+    Returns the branch name, or empty string if not a git repo or on error.
+    """
+    try:
+        root = (project_root or Path.cwd()).resolve()
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            cwd=str(root),
+            timeout=10,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except (subprocess.SubprocessError, OSError):
+        pass
+    return ""
+
+
+def get_current_git_diff_summary(project_root: Optional[Path] = None) -> str:
+    """Get a brief git diff summary using ``git diff --stat HEAD``.
+
+    Returns the first 500 characters of the diff stat, or empty string
+    if not a git repo or on error. Useful for capturing session changes.
+    """
+    try:
+        root = (project_root or Path.cwd()).resolve()
+        result = subprocess.run(
+            ["git", "diff", "--stat", "HEAD"],
+            capture_output=True,
+            text=True,
+            cwd=str(root),
+            timeout=10,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()[:500]
+    except (subprocess.SubprocessError, OSError):
+        pass
+    return ""
+
+
+def parse_openCode_log_content(raw_content: str) -> dict:
+    """Analyze raw OpenCode log content and extract structured information.
+
+    Uses the same regex patterns as :class:`session_manager.SessionManager`
+    for consistency.
+
+    Returns a dict with keys:
+        - errors: list of error line matches
+        - warnings: list of warning line matches
+        - files_changed: list of unique file paths found
+        - commands_run: list of command lines found
+        - summary_hint: last 20 lines (where conclusions usually appear)
+    """
+    result = {
+        "errors": [],
+        "warnings": [],
+        "files_changed": [],
+        "commands_run": [],
+        "summary_hint": "",
+    }
+
+    for line in raw_content.splitlines():
+        if re.search(r"(error|exception|failed|failure)", line, re.IGNORECASE):
+            result["errors"].append(line.strip())
+        elif re.search(r"(warning|warn)", line, re.IGNORECASE):
+            result["warnings"].append(line.strip())
+        elif re.search(
+            r"(modified|created|deleted|wrote|edited)", line, re.IGNORECASE
+        ):
+            match = re.search(r"[\w./\\-]+\.\w+", line)
+            if match:
+                result["files_changed"].append(match.group(0))
+        elif re.match(r"\$\s+", line) or re.search(
+            r"Running:\s+", line, re.IGNORECASE
+        ):
+            result["commands_run"].append(line.strip())
+
+    # Deduplicate and trim
+    result["files_changed"] = list(set(result["files_changed"]))
+    result["errors"] = result["errors"][:50]
+    result["warnings"] = result["warnings"][:50]
+    result["commands_run"] = result["commands_run"][:50]
+
+    # Extract summary hint from the last 20 lines
+    lines = raw_content.splitlines()
+    result["summary_hint"] = "\n".join(lines[-20:])
+
+    return result
+
+
+def get_auto_session_flag_path(project_root: Optional[Path] = None) -> Path:
+    """Return the path to the ``.opencode/.auto_session_enabled`` flag file."""
+    return get_opencode_dir(project_root) / ".auto_session_enabled"
+
+
+def is_auto_session_enabled(project_root: Optional[Path] = None) -> bool:
+    """Check if the auto-session flag file exists for this project."""
+    return get_auto_session_flag_path(project_root).exists()

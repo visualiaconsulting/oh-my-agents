@@ -57,10 +57,10 @@ class SetupWizard:
         table.add_column("Model", style="white")
         table.add_column("Role", style="dim")
 
-        table.add_row("orchestrator", "opencode-go/kimi-k2.6", "Primary")
-        table.add_row("code-analyst", "opencode-go/deepseek-v4-pro", "Subagent")
+        table.add_row("orchestrator", "opencode-go/deepseek-v4-pro", "Primary")
+        table.add_row("code-analyst", "opencode-go/deepseek-v4-flash", "Subagent")
         table.add_row("validator", "opencode-go/mimo-v2.5-pro", "Subagent")
-        table.add_row("bulk-processor", "opencode-go/deepseek-v4-flash", "Subagent")
+        table.add_row("bulk-processor", "opencode-go/minimax-m2.7", "Subagent")
         table.add_row("subagent", "opencode-go/glm-5.1", "Fallback")
         table.add_row("summarizer", "opencode-go/minimax-m2.5", "Session Summary")
         table.add_row("frontend", "opencode-go/qwen3.6-plus", "UI Specialist")
@@ -73,10 +73,10 @@ class SetupWizard:
         """Automatically configure the recommended agents"""
         self.agents = [] # Reset
         defaults = [
-            {"name": "orchestrator", "role": "primary", "model": "opencode-go/kimi-k2.6", "desc": "Central system orchestrator"},
-            {"name": "code-analyst", "role": "subagent", "model": "opencode-go/deepseek-v4-pro", "desc": "Senior software engineer"},
-            {"name": "validator", "role": "subagent", "model": "opencode-go/mimo-v2.5-pro", "desc": "QA and code validator"},
-            {"name": "bulk-processor", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "Bulk data processing"},
+            {"name": "orchestrator", "role": "primary", "model": "opencode-go/deepseek-v4-pro", "desc": "Central system orchestrator"},
+            {"name": "code-analyst", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "Senior software engineer"},
+            {"name": "validator", "role": "subagent", "model": "opencode-go/qwen3.6-plus", "desc": "QA and code validator"},
+            {"name": "bulk-processor", "role": "subagent", "model": "opencode-go/qwen3.5-plus", "desc": "Bulk data processing"},
             {"name": "subagent", "role": "subagent", "model": "opencode-go/glm-5.1", "desc": "Fallback agent and generic tasks"},
             {"name": "summarizer", "role": "subagent", "model": "opencode-go/minimax-m2.5", "desc": "Session summarizer and project analyst"},
             {"name": "frontend", "role": "subagent", "model": "opencode-go/qwen3.6-plus", "desc": "Frontend specialist — React, TypeScript, UI"},
@@ -84,7 +84,7 @@ class SetupWizard:
         ]
 
         permissions_map = {
-            "orchestrator":     {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "allow"},
+            "orchestrator":     {"edit": "deny",  "bash": "allow", "read": "allow", "task": "allow"},
             "code-analyst":     {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
             "validator":        {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
             "bulk-processor":   {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},

@@ -55,7 +55,7 @@ def print_agent_status(agents_data):
             agent['name'],
             agent['role'],
             agent['model'],
-            "[bold green]● Active[/bold green]"
+            "[bold green]Active[/bold green]"
         )
 
     console.print(table)
@@ -180,7 +180,7 @@ def print_step(message):
     console.print(Panel(message, border_style="info", expand=False))
 
 def print_success(message):
-    console.print(f"[success]✔[/success] {message}")
+    console.print(f"[success]OK[/success] {message}")
 
 def print_error(message):
-    console.print(f"[error]✖[/error] {message}")
+    console.print(f"[error]X[/error] {message}")

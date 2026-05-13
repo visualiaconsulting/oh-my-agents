@@ -11,6 +11,7 @@ from typing import Optional
 from utils import (
     get_sessions_dir,
     get_logs_dir,
+    get_logs_dir_candidates,
     get_opencode_dir,
     generate_session_id,
     format_timestamp,
@@ -19,17 +20,31 @@ from utils import (
     truncate_text,
 )
 
+from project_db import ProjectDB
+
 
 class SessionManager:
     """Manages session logs and continuity context."""
 
-    def __init__(self, project_root: Optional[Path] = None):
+    def __init__(self, project_root: Optional[Path] = None, use_db: bool = False):
         self.project_root = project_root or Path(__file__).parent
         self.sessions_dir = get_sessions_dir(self.project_root)
         self.logs_dir = get_logs_dir(self.project_root)
+        self.use_db = use_db
+        self._db: Optional[ProjectDB] = None
+
+    def _get_db(self) -> ProjectDB:
+        """Lazy-load the project database."""
+        if self._db is None:
+            self._db = ProjectDB(self.project_root)
+        return self._db
 
     def scan_logs(self) -> dict:
-        """Scan .opencode/logs/ for session data and extract key information.
+        """Scan OpenCode log directories for session data and extract key information.
+
+        Searches all candidate log directories (project/.opencode/logs/,
+        global ~/.opencode/logs/, APPDATA on Windows, etc.) and reads
+        the single most recent *.log file found.
 
         Returns a dict with:
             - files_changed: list of file paths modified
@@ -37,6 +52,7 @@ class SessionManager:
             - warnings: list of warning messages found
             - commands_run: list of commands executed
             - raw_content: combined log text for summarization
+            - log_source: path to the log file that was actually read
         """
         result = {
             "files_changed": [],
@@ -44,16 +60,26 @@ class SessionManager:
             "warnings": [],
             "commands_run": [],
             "raw_content": "",
+            "log_source": "",
+            "line_count": 0,
         }
 
-        if not self.logs_dir.exists():
+        candidates = get_logs_dir_candidates(self.project_root)
+
+        # Collect all *.log files from all candidate directories
+        all_logs = []
+        for candidate in candidates:
+            all_logs.extend(
+                (f, candidate) for f in candidate.glob("*.log")
+            )
+
+        if not all_logs:
             return result
 
-        log_files = sorted(self.logs_dir.glob("*.log"), key=lambda f: f.stat().st_mtime, reverse=True)
-        if not log_files:
-            return result
+        # Sort by modification time descending (most recent first)
+        all_logs.sort(key=lambda item: item[0].stat().st_mtime, reverse=True)
 
-        latest_log = log_files[0]
+        latest_log, _ = all_logs[0]
         try:
             with open(latest_log, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -61,6 +87,8 @@ class SessionManager:
             return result
 
         result["raw_content"] = content
+        result["log_source"] = str(latest_log)
+        result["line_count"] = len(content.splitlines())
 
         for line in content.splitlines():
             if re.search(r"(error|exception|failed|failure)", line, re.IGNORECASE):
@@ -116,7 +144,31 @@ class SessionManager:
 
         filepath = self.sessions_dir / f"{session_id}.json"
         safe_json_save(filepath, session)
+
+        # Also save to project database if enabled
+        if self.use_db:
+            db = self._get_db()
+            db.ensure_project_meta()
+            db_data = {
+                "session_id": session_id,
+                "timestamp": now,
+                "agent": agent,
+                "summary": summary,
+                "pending_tasks": pending_tasks or [],
+                "decisions": decisions or [],
+                "files_changed": files_changed or log_data.get("files_changed", []),
+                "errors": errors or log_data.get("errors", []),
+                "commands": log_data.get("commands_run", []),
+                "raw_log_preview": log_data.get("raw_content", "")[:2000] if log_data else "",
+            }
+            db.save_session(db_data)
+
         return session_id
+
+    def save_session_db(self, session_data: dict) -> str:
+        """Save a session directly to the project database. Returns session_id."""
+        db = self._get_db()
+        return db.save_session(session_data)
 
     def get_last_session(self) -> Optional[dict]:
         """Return the most recent session, or None."""
@@ -132,21 +184,43 @@ class SessionManager:
 
     def list_sessions(self, limit: int = 20) -> list:
         """List sessions sorted by most recent first."""
-        if not self.sessions_dir.exists():
-            return []
+        json_sessions = []
+        if self.sessions_dir.exists():
+            session_files = sorted(
+                self.sessions_dir.glob("*.json"),
+                key=lambda f: f.stat().st_mtime,
+                reverse=True,
+            )
+            for sf in session_files[:limit]:
+                data = safe_json_load(sf)
+                if data:
+                    json_sessions.append(data)
 
-        session_files = sorted(
-            self.sessions_dir.glob("*.json"),
-            key=lambda f: f.stat().st_mtime,
-            reverse=True,
-        )
+        # If DB integration not enabled, return JSON sessions
+        if not self.use_db:
+            return json_sessions
 
-        sessions = []
-        for sf in session_files[:limit]:
-            data = safe_json_load(sf)
-            if data:
-                sessions.append(data)
-        return sessions
+        # Query DB and merge with JSON sessions
+        db = self._get_db()
+        db_sessions = db.list_sessions(limit=limit)
+
+        # Merge: DB takes priority, deduplicate by session_id
+        seen = set()
+        merged = []
+
+        for s in db_sessions:
+            sid = s.get("session_id")
+            if sid and sid not in seen:
+                seen.add(sid)
+                merged.append(s)
+
+        for s in json_sessions:
+            sid = s.get("session_id")
+            if sid and sid not in seen:
+                seen.add(sid)
+                merged.append(s)
+
+        return merged[:limit]
 
     def inject_context(self, max_sessions: int = 3) -> str:
         """Generate a context string for injection into context.md.
@@ -222,6 +296,12 @@ class SessionManager:
                 f.write(content)
         except OSError:
             pass
+
+    def close(self):
+        """Close database connection if open."""
+        if self._db is not None:
+            self._db.close()
+            self._db = None
 
     def delete_session(self, session_id: str) -> bool:
         """Delete a session file."""

@@ -22,10 +22,10 @@ The project implements an **Orchestrator and Specialists** architecture on the d
 
 | Agent | Role | Model (Go Plan) | Permissions | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| **@orchestrator** | Main Coordinator | `opencode-go/kimi-k2.6` | `Read, Task` | Breaks down complex tasks and delegates to sub-agents. Does NOT write code or execute commands. (SWE-Bench Pro 58.6%) |
-| **@code-analyst** | Senior Engineer | `opencode-go/deepseek-v4-pro` | `Edit, Bash, Read` | Clean code and architecture implementation. (GPQA Diamond 90.1%) |
-| **@validator** | QA Specialist | `opencode-go/mimo-v2.5-pro` | `Read Only` | Validation, linting, and quality review. No editing or bash. (94% math precision) |
-| **@bulk-processor** | Data Processor | `opencode-go/deepseek-v4-flash` | `Edit, Bash, Read` | Repetitive, high-volume tasks (hidden). (MMLU-Pro 87.5%) |
+| **@orchestrator** | Main Coordinator | `opencode-go/deepseek-v4-pro` | `Read, Task` | Breaks down complex tasks and delegates to sub-agents. Does NOT write code or execute commands. (SWE-Bench Pro 58.6%) |
+| **@code-analyst** | Senior Engineer | `opencode-go/deepseek-v4-flash` | `Edit, Bash, Read` | Clean code and architecture implementation. (GPQA Diamond 90.1%) |
+| **@validator** | QA Specialist | `opencode-go/qwen3.6-plus` | `Read Only` | Validation, linting, and quality review. No editing or bash. (94% math precision) |
+| **@bulk-processor** | Data Processor | `opencode-go/qwen3.5-plus` | `Edit, Bash, Read` | Repetitive, high-volume tasks (hidden). (MMLU-Pro 87.5%) |
 | **@subagent** | Debugger/Fallback | `opencode-go/glm-5.1` | `Edit, Bash, Read` | Generic agent for debugging and auxiliary tasks. |
 | **@summarizer** | Session Analyst | `opencode-go/minimax-m2.5` | `Edit, Bash, Read` | Lightweight session summarizer, log analysis, and project continuity. |
 | **@frontend** | UI Specialist | `opencode-go/qwen3.6-plus` | `Edit, Bash, Read` | Frontend — React, TypeScript, Tailwind, UI iteration. (SWE-Bench Verified 78.8%, 1M context) |
@@ -61,10 +61,10 @@ The `PlanManager` is the logical brain that manages agent configuration based on
 
 | Role | Model |
 |:---|:---|
-| Orchestrator | `opencode-go/kimi-k2.6` |
-| Code Analyst | `opencode-go/deepseek-v4-pro` |
-| Validator | `opencode-go/mimo-v2.5-pro` |
-| Bulk Processor | `opencode-go/deepseek-v4-flash` |
+| Orchestrator | `opencode-go/deepseek-v4-pro` |
+| Code Analyst | `opencode-go/deepseek-v4-flash` |
+| Validator | `opencode-go/qwen3.6-plus` |
+| Bulk Processor | `opencode-go/qwen3.5-plus` |
 | Subagent | `opencode-go/glm-5.1` |
 | Summarizer | `opencode-go/minimax-m2.5` |
 | Frontend | `opencode-go/qwen3.6-plus` |
@@ -128,6 +128,38 @@ The **Qwen3.6 Plus** and **Qwen3.5 Plus** models were previously removed from th
 ---
 
 ## 📝 Changelog
+
+### v1.6.0 — Project Database & Auto-Session Continuity (May 2026)
+
+**New features:**
+- **ProjectDB (`project_db.py`):** SQLite database per project (`.opencode/project.db`) with tables for sessions, files_changed, errors, commands, and project_meta. Enables rich querying of session history and project state.
+- **Auto-Session (`wrappers/opencode_logger.py`):** Automatic session saving when OpenCode exits. Enabled via `--auto-enable` flag. Sessions are auto-parsed from log output, saved to both SQLite and JSON backup, and `context.md` is auto-updated.
+- **Continuity Manager (`continuity.py`):** Provides re-entry prompts, project health reports, pending task tracking, and status banners when returning to a project.
+- **Project Hash:** Deterministic SHA-256 hash (12 chars) derived from project path for project identity across sessions.
+
+**New CLI commands:**
+| Command | Description |
+|---------|-------------|
+| `--auto-enable` | Enable automatic session saving for this project |
+| `--auto-disable` | Disable automatic session saving |
+| `--project-status` | Show project continuity status and session history |
+| `--project-health` | Show project health report |
+| `--continue` | Show re-entry context from last session |
+| `--list-tasks` | List pending tasks from last session |
+| `--complete-task <index>` | Mark a pending task as complete |
+
+**New files:**
+- `project_db.py` — SQLite project database manager (WAL mode, 5 tables, 5+ indexes)
+- `continuity.py` — ContinuityManager for project re-entry experience
+- `tests/test_project_db.py` — Comprehensive tests (20+ tests)
+
+**Modified files:**
+- `utils.py` — Added `get_project_db_path()`, `generate_project_hash()`, `get_current_git_branch()`, `get_current_git_diff_summary()`, `parse_openCode_log_content()`, `get_auto_session_flag_path()`, `is_auto_session_enabled()`
+- `wrappers/opencode_logger.py` — Added `auto_save_session()` hook on process exit
+- `session_manager.py` — Added `use_db` parameter and DB-backed operations
+- `main.py` — Added 7 new CLI arguments and 7 handler functions, updated interactive menu with 5 new options
+
+**Production usage:** The system is being used successfully in the RoadFlow project for session continuity and automatic state tracking across development sessions.
 
 ### v1.5.0 — MCP Integration & Auto-Skills (Feature Branch)
 
@@ -467,6 +499,8 @@ Translated all documentation, comments, and user-facing strings from Spanish to 
 ├── main.py                      # Multi-agent system CLI
 ├── session_manager.py           # Session logging and continuity
 ├── skill_registry.py            # Skills download and management
+├── project_db.py                # SQLite project database manager
+├── continuity.py                # Project continuity manager
 ├── mcp_client.py                # MCP protocol client (JSON-RPC 2.0 over stdio)
 ├── mcp_config.py                # MCP configuration manager
 ├── skill_recommender.py         # Auto-skill recommendation engine
@@ -489,7 +523,8 @@ Translated all documentation, comments, and user-facing strings from Spanish to 
 │   ├── test_wizard.py           # 22 tests: defaults, permissions, save
 │   ├── test_main.py             # 15 tests: agents, deps, global install, uninstall
 │   ├── test_update_manager.py   # 10 tests: version, updates, merge
-│   └── test_mcp.py              # 10 tests: MCP config, client, recommender
+│   ├── test_mcp.py              # 10 tests: MCP config, client, recommender
+│   └── test_project_db.py       # 20+ tests: project database, continuity
 ├── .github/
 │   └── workflows/
 │       └── ci.yml               # CI pipeline (test matrix + lint)
@@ -523,11 +558,11 @@ print(f"Available models: {pm.get_available_models()}")
 
 | Plan | Detection Method | Orchestrator Model |
 |------|---------------------|--------------------|
-| **Go** (default) | Default or `OPENCODE_PLAN=go` | `opencode-go/kimi-k2.6` |
+| **Go** (default) | Default or `OPENCODE_PLAN=go` | `opencode-go/deepseek-v4-pro` |
 | **Zen** | `GITHUB_TOKEN` or `COPILOT_TOKEN` | `opencode/claude-sonnet-4.5` |
 | **API** | `ANTHROPIC_API_KEY` | `anthropic/claude-sonnet-4` (configurable) |
-| **Enterprise** | `OPENCODE_PLAN=enterprise` | `opencode-go/kimi-k2.6` (configurable) |
-| **OpenRouter** | `OPENROUTER_API_KEY` | `openrouter/anthropic/claude-sonnet-4.5` (configurable) |
+| **Enterprise** | `OPENCODE_PLAN=enterprise` | `opencode-go/deepseek-v4-pro` (configurable) |
+| **OpenRouter** | `OPENROUTER_API_KEY` | `openrouter/deepseek/deepseek-v3` (configurable) |
 | **Copilot** | Active GitHub Copilot | `copilot/claude-sonnet-4` |
 | **Ollama** | `OLLAMA_HOST` or Ollama running | `ollama/llama3.3:70b` (configurable) |
 
@@ -543,6 +578,9 @@ print(f"Available models: {pm.get_available_models()}")
 6. **Skills Exploration:** Run `python main.py --skills-search database` to find relevant skills for your project
 7. **Uninstall Test:** Run `python main.py --uninstall` to verify the interactive removal workflow works correctly (reinstall with `python main.py --install-global`)
 8. **Update test:** Run `python main.py --check-updates` to verify the update system can reach GitHub
+9. **Test project DB:** Run `python main.py --project-status` to verify project continuity features
+10. **Enable auto-session:** Run `python main.py --auto-enable` to enable automatic session saving
+11. **View continuity:** Run `python main.py --continue` to see re-entry context
 
 ---
 

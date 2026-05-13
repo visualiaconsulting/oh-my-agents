@@ -7,6 +7,8 @@ from update_manager import check_for_updates, run_update
 from mcp_client import MCPClient
 from mcp_config import MCPConfig, MCP_SERVER_TEMPLATES
 from skill_recommender import SkillRecommender
+from continuity import ContinuityManager
+from project_db import ProjectDB
 
 SYSTEM_ROOT = Path(__file__).parent.resolve()
 
@@ -52,19 +54,19 @@ def run_doctor(working_root=None):
     py_ver = platform.python_version()
     major, minor = map(int, py_ver.split(".")[:2])
     if major >= 3 and minor >= 8:
-        console.print(f"  [green]✔[/green] Python {py_ver}")
+        console.print(f"  [green]OK[/green] Python {py_ver}")
     else:
-        console.print(f"  [red]✖[/red] Python {py_ver} (requires 3.8+)")
+        console.print(f"  [red]X[/red] Python {py_ver} (requires 3.8+)")
 
     missing = check_dependencies()
     if missing:
-        console.print(f"  [red]✖[/red] Missing dependencies: {', '.join(missing)}")
+        console.print(f"  [red]X[/red] Missing dependencies: {', '.join(missing)}")
         console.print(f"    Run: [bold]pip install -r requirements.txt[/bold]")
     else:
-        console.print(f"  [green]✔[/green] Dependencies installed (PyYAML, questionary, rich)")
+        console.print(f"  [green]OK[/green] Dependencies installed (PyYAML, questionary, rich)")
 
     if check_opencode_cli():
-        console.print(f"  [green]✔[/green] OpenCode CLI available")
+        console.print(f"  [green]OK[/green] OpenCode CLI available")
     else:
         console.print(f"  [yellow]⚠[/yellow] OpenCode CLI not found")
         console.print(f"    Install from: [bold]https://opencode.ai[/bold]")
@@ -73,17 +75,17 @@ def run_doctor(working_root=None):
     agent_dir = find_agent_source(working_root)
     if agent_dir:
         agent_count = len(list(agent_dir.glob("*.md")))
-        console.print(f"  [green]✔[/green] Agents configured: {agent_count}")
+        console.print(f"  [green]OK[/green] Agents configured: {agent_count}")
 
         pm = PlanManager(project_root=working_root)
         valid, invalid = pm.validate_models()
         if invalid:
-            console.print(f"  [red]✖[/red] Invalid model IDs detected:")
+            console.print(f"  [red]X[/red] Invalid model IDs detected:")
             for name, model in invalid:
                 console.print(f"      @{name} → [red]{model}[/red] (not in registry)")
             console.print(f"    [dim]Run 'python main.py --setup' to reconfigure.[/dim]")
         elif valid:
-            console.print(f"  [green]✔[/green] All agent model IDs valid ({len(valid)} models)")
+            console.print(f"  [green]OK[/green] All agent model IDs valid ({len(valid)} models)")
     else:
         console.print(f"  [yellow]⚠[/yellow] No agent configuration found")
 
@@ -91,7 +93,7 @@ def run_doctor(working_root=None):
     sm = SessionManager(project_root=working_root)
     sessions = sm.list_sessions(limit=1)
     if sessions:
-        console.print(f"  [green]✔[/green] Session history active ({len(sm.list_sessions())} sessions)")
+        console.print(f"  [green]OK[/green] Session history active ({len(sm.list_sessions())} sessions)")
     else:
         console.print(f"  [dim]ℹ[/dim] No sessions recorded yet")
 
@@ -99,7 +101,7 @@ def run_doctor(working_root=None):
     sr = SkillRegistry(project_root=working_root)
     skills = sr.list_skills()
     if skills:
-        console.print(f"  [green]✔[/green] Skills installed: {len(skills)}")
+        console.print(f"  [green]OK[/green] Skills installed: {len(skills)}")
     else:
         console.print(f"  [dim]ℹ[/dim] No skills installed")
 
@@ -159,7 +161,7 @@ def install_global():
         target_file = target_dir / md_file.name
         shutil.copy2(md_file, target_file)
         copied += 1
-        console.print(f"  [green]✔[/green] {md_file.name}")
+        console.print(f"  [green]OK[/green] {md_file.name}")
 
     print_success(f"Installed {copied} agent(s) globally to {target_dir}")
     console.print("[dim]Now opencode --agent orchestrator works from ANY folder on your system.[/dim]")
@@ -229,7 +231,7 @@ def run_summarize(working_root=None):
     """Run the summarizer: scan logs and save session record"""
     from cli.ui import console, print_success, print_error
     from session_manager import SessionManager
-    from utils import resolve_working_root
+    from utils import resolve_working_root, get_logs_dir_candidates
 
     if working_root is None:
         working_root = resolve_working_root()
@@ -238,8 +240,13 @@ def run_summarize(working_root=None):
     log_data = sm.scan_logs()
 
     if not log_data["raw_content"]:
-        console.print("[yellow]No logs found in .opencode/logs/[/yellow]")
+        console.print("[yellow]No logs found.[/yellow]")
+        console.print("[dim]Searched in:[/dim]")
+        for p in get_logs_dir_candidates(working_root):
+            console.print(f"  [dim]- {p}[/dim]")
         console.print("[dim]Make sure OpenCode has been run in this project first.[/dim]")
+        console.print("[dim]Tip: Run `python main.py --enable-logging` to install a wrapper that captures opencode output automatically.[/dim]")
+        console.print("[dim]     Or use `python main.py --manual-session` to paste a session manually.[/dim]")
         return
 
     session_id = sm.save_session(
@@ -255,6 +262,128 @@ def run_summarize(working_root=None):
     print_success(f"Session saved: {session_id}")
     console.print(f"  [dim]Files changed: {len(log_data.get('files_changed', []))}[/dim]")
     console.print(f"  [dim]Errors found: {len(log_data.get('errors', []))}[/dim]")
+    console.print(f"  [dim]Context updated in .opencode/context.md[/dim]")
+
+
+def run_enable_logging():
+    """Install the opencode session logger wrapper to ~/.opencode/bin/."""
+    from cli.ui import console, print_success, print_error
+
+    source_dir = SYSTEM_ROOT / "wrappers"
+    target_dir = Path.home() / ".opencode" / "bin"
+
+    wrapper_files = [
+        "opencode_logger.py",
+        "opencode-logger.bat",
+        "opencode-logger",
+    ]
+
+    if not source_dir.exists():
+        print_error(f"Wrapper source directory not found: {source_dir}")
+        return False
+
+    missing = [f for f in wrapper_files if not (source_dir / f).exists()]
+    if missing:
+        print_error(f"Missing wrapper files: {', '.join(missing)}")
+        return False
+
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    for filename in wrapper_files:
+        src = source_dir / filename
+        dst = target_dir / filename
+        shutil.copy2(src, dst)
+        console.print(f"  [green]OK[/green] {filename}")
+
+    # Make the Unix shim executable
+    if sys.platform != "win32":
+        unix_shim = target_dir / "opencode-logger"
+        try:
+            unix_shim.chmod(0o755)
+        except OSError:
+            pass
+
+    print_success(f"Logger wrapper installed to {target_dir}")
+
+    console.print("")
+    if sys.platform == "win32":
+        console.print("[bold cyan]To use the logger:[/bold cyan]")
+        console.print(f"  Add [bold]{target_dir}[/bold] to your PATH (before the real opencode location).")
+        console.print("")
+        console.print("  Then use [bold]opencode-logger[/bold] instead of [bold]opencode[/bold]:")
+        console.print("    [dim]opencode-logger --agent orchestrator[/dim]")
+    else:
+        console.print("[bold cyan]To use the logger:[/bold cyan]")
+        console.print(f"  Add [bold]{target_dir}[/bold] to your PATH (before the real opencode location):")
+        console.print(f"    [dim]export PATH=\"{target_dir}:$PATH\"[/dim]")
+        console.print("")
+        console.print("  Then use [bold]opencode-logger[/bold] instead of [bold]opencode[/bold]:")
+        console.print("    [dim]opencode-logger --agent orchestrator[/dim]")
+
+    console.print("")
+    console.print("[dim]The first time you run it, it will save logs to .opencode/logs/ in your project folder.[/dim]")
+    return True
+
+
+def run_manual_session(working_root=None):
+    """Interactively record a session from user-pasted content."""
+    from cli.ui import console, print_success, print_error
+    from session_manager import SessionManager
+    from utils import resolve_working_root
+    import questionary
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    console.print("\n[bold cyan]=== Manual Session Recording ===[/bold cyan]\n")
+
+    agent = questionary.text(
+        "Agent name used:",
+        default="orchestrator"
+    ).ask()
+    if agent is None:
+        console.print("[dim]Cancelled.[/dim]")
+        return
+
+    summary = questionary.text(
+        "Session summary (optional, free text):",
+        default=""
+    ).ask()
+    if summary is None:
+        summary = ""
+
+    console.print("[dim]Paste session content below. Press Enter on an empty line to finish.[/dim]")
+    pasted = questionary.text(
+        "Session content:",
+        multiline=True,
+        default=""
+    ).ask()
+    if pasted is None:
+        pasted = ""
+
+    sm = SessionManager(project_root=working_root)
+
+    log_data = {
+        "files_changed": [],
+        "errors": [],
+        "warnings": [],
+        "commands_run": [],
+        "raw_content": pasted,
+        "log_source": "manual-input",
+        "line_count": len(pasted.splitlines()) if pasted else 0,
+    }
+
+    session_id = sm.save_session(
+        agent=agent or "unknown",
+        summary=summary or "Manually recorded session.",
+        log_data=log_data,
+    )
+
+    sm.update_context_md()
+
+    print_success(f"Session saved: {session_id}")
+    if pasted:
+        console.print(f"  [dim]Pasted content: {len(pasted.splitlines())} lines[/dim]")
     console.print(f"  [dim]Context updated in .opencode/context.md[/dim]")
 
 
@@ -335,6 +464,199 @@ def run_skills_remove(name: str, working_root=None):
         print_error(f"Skill '{name}' not found.")
 
 
+def run_auto_enable(working_root=None):
+    """Enable automatic session saving for this project."""
+    from cli.ui import console, print_success, print_error
+    from utils import resolve_working_root
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    cm = ContinuityManager(project_root=working_root)
+    if cm.enable_auto_session():
+        print_success(f"Auto-session enabled for {working_root.name}")
+        console.print("[dim]Sessions will be automatically saved when opencode-logger exits.[/dim]")
+        console.print(f"[dim]Flag file: {working_root / '.opencode' / '.auto_session_enabled'}[/dim]")
+    else:
+        print_error("Failed to enable auto-session.")
+
+
+def run_auto_disable(working_root=None):
+    """Disable automatic session saving for this project."""
+    from cli.ui import console, print_success
+    from utils import resolve_working_root
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    cm = ContinuityManager(project_root=working_root)
+    if cm.disable_auto_session():
+        print_success(f"Auto-session disabled for {working_root.name}")
+    else:
+        console.print("[yellow]Auto-session was not enabled.[/yellow]")
+
+
+def run_project_status(working_root=None):
+    """Show project continuity status."""
+    from cli.ui import console
+    from utils import resolve_working_root
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    cm = ContinuityManager(project_root=working_root)
+
+    # Show banner
+    banner = cm.get_status_banner()
+    if banner:
+        console.print(f"\n{banner}\n")
+    else:
+        console.print(f"\n[bold cyan]Project: {working_root.name}[/bold cyan]")
+        console.print("[dim]No session history yet.[/dim]")
+
+    # Show auto-session status
+    if is_auto_session_enabled(working_root):
+        console.print("[green]Auto-session: ENABLED[/green]")
+    else:
+        console.print("[dim]Auto-session: disabled[/dim]")
+        console.print("[dim]Enable with: python main.py --auto-enable[/dim]")
+
+    # Show recent sessions if any
+    if cm.has_history():
+        console.print("\n[bold]Recent Sessions:[/bold]")
+        sessions = cm.db.list_sessions(limit=5)
+        for s in sessions:
+            ts = s.get('timestamp', 'unknown')
+            agent = s.get('agent', 'unknown')
+            summary = s.get('summary', '')[:80]
+            files = s.get('file_count', 0)
+            errors = s.get('error_count', 0)
+            console.print(f"  [dim]{ts}[/dim] @{agent} — {summary}")
+            if files or errors:
+                console.print(f"    {files} files, {errors} errors")
+
+    cm.close()
+
+
+def run_project_health(working_root=None):
+    """Show project health report."""
+    from cli.ui import console
+    from utils import resolve_working_root
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    cm = ContinuityManager(project_root=working_root)
+    health = cm.get_project_health()
+
+    console.print(f"\n[bold cyan]=== Project Health: {working_root.name} ===[/bold cyan]\n")
+
+    status = health.get('health_status', 'unknown')
+    status_colors = {
+        'healthy': 'green',
+        'has_warnings': 'yellow',
+        'needs_attention': 'red',
+        'new_project': 'dim',
+        'error': 'red',
+    }
+    color = status_colors.get(status, 'white')
+    console.print(f"  Status:       [{color}]{status}[/{color}]")
+    console.print(f"  Sessions:     {health.get('total_sessions', 0)}")
+    console.print(f"  Total errors: {health.get('total_errors', 0)}")
+    console.print(f"  Files changed:{health.get('total_files_changed', 0)}")
+    console.print(f"  Last active:  {health.get('last_active', 'never')}")
+    console.print(f"  Pending tasks:{health.get('pending_tasks', 0)}")
+    console.print(f"  Open errors:  {health.get('open_errors', 0)}")
+    console.print("")
+
+    cm.close()
+
+
+def run_continue_session(working_root=None):
+    """Show re-entry context from the last session."""
+    from cli.ui import console
+    from utils import resolve_working_root
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    cm = ContinuityManager(project_root=working_root)
+
+    if not cm.has_history():
+        console.print("[yellow]No session history found.[/yellow]")
+        console.print("[dim]Start a session with opencode-logger --agent orchestrator first.[/dim]")
+        cm.close()
+        return
+
+    prompt = cm.get_reentry_prompt()
+    if prompt:
+        console.print(f"\n[bold cyan]=== Continuity Context ===[/bold cyan]\n")
+        console.print(prompt)
+        console.print("")
+    else:
+        console.print("[yellow]Could not generate continuity context.[/yellow]")
+
+    cm.close()
+
+
+def run_list_tasks(working_root=None):
+    """List pending tasks from the last session."""
+    from cli.ui import console
+    from utils import resolve_working_root
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    cm = ContinuityManager(project_root=working_root)
+
+    if not cm.has_history():
+        console.print("[yellow]No session history found.[/yellow]")
+        cm.close()
+        return
+
+    last = cm.get_last_session()
+    if not last:
+        console.print("[yellow]No sessions found.[/yellow]")
+        cm.close()
+        return
+
+    pending = last.get('pending_tasks', [])
+    if not pending:
+        console.print("[green]No pending tasks![/green]")
+        cm.close()
+        return
+
+    console.print(f"\n[bold cyan]=== Pending Tasks ===[/bold cyan]\n")
+    for i, task in enumerate(pending):
+        console.print(f"  [{i}] {task}")
+    console.print(f"\n[dim]Complete a task with: python main.py --complete-task <index>[/dim]")
+
+    cm.close()
+
+
+def run_complete_task(task_index: int, working_root=None):
+    """Mark a pending task as complete."""
+    from cli.ui import console, print_success, print_error
+    from utils import resolve_working_root
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    cm = ContinuityManager(project_root=working_root)
+
+    if not cm.has_history():
+        print_error("No session history found.")
+        cm.close()
+        return
+
+    if cm.db.mark_task_complete(task_index):
+        print_success(f"Task [{task_index}] marked as complete.")
+    else:
+        print_error(f"Could not complete task [{task_index}]. Check the index.")
+
+    cm.close()
+
+
 def run_mcp_status(working_root=None):
     """Show MCP server status and available tools."""
     from cli.ui import console, print_success, print_error
@@ -362,12 +684,12 @@ def run_mcp_status(working_root=None):
         ok, msg = client.connect_server(server_config)
         if ok:
             tools = client.connections[name].tools
-            console.print(f"    [green]✔ Connected[/green] ({len(tools)} tool(s))")
+            console.print(f"    [green]OK Connected[/green] ({len(tools)} tool(s))")
             for tool in tools:
                 console.print(f"      • {tool.get('name', '?')}: {tool.get('description', '')[:60]}")
             client.disconnect_server(name)
         else:
-            console.print(f"    [red]✖ {msg}[/red]")
+            console.print(f"    [red]X {msg}[/red]")
     console.print("")
 
 
@@ -423,9 +745,9 @@ def run_skills_recommend(working_root=None, auto_install=False):
         results = recommender.install_recommendations(recommendations)
         for skill_id, success in results:
             if success:
-                console.print(f"  [green]✔ Installed {skill_id}[/green]")
+                console.print(f"  [green]OK Installed {skill_id}[/green]")
             else:
-                console.print(f"  [red]✖ Failed {skill_id}[/red]")
+                console.print(f"  [red]X Failed {skill_id}[/red]")
         return
 
     console.print("")
@@ -467,7 +789,7 @@ def run_uninstall():
 
     console.print("The following will be removed:")
     for label, path in items_to_remove:
-        console.print(f"  [red]✖[/red] {label}: {path}")
+        console.print(f"  [red]X[/red] {label}: {path}")
 
     remove_all = questionary.confirm(
         "Remove ALL of the above (agents, sessions, skills, config)?",
@@ -499,7 +821,7 @@ def run_uninstall():
                 path.unlink()
             else:
                 shutil.rmtree(path)
-            console.print(f"  [green]✔[/green] Removed {label}")
+            console.print(f"  [green]OK[/green] Removed {label}")
             removed += 1
         except OSError as e:
             print_error(f"Failed to remove {label}: {e}")
@@ -509,7 +831,7 @@ def run_uninstall():
             if wrapper_path.exists():
                 try:
                     wrapper_path.unlink()
-                    console.print(f"  [green]✔[/green] Removed wrapper: {wrapper_path}")
+                    console.print(f"  [green]OK[/green] Removed wrapper: {wrapper_path}")
                 except OSError:
                     pass
 
@@ -562,11 +884,29 @@ def main():
     parser.add_argument("--session", type=str, default=None, help="Show details of a specific session by ID")
     parser.add_argument("--session-status", action="store_true", help="Show summary of the last session")
     parser.add_argument("--summarize", action="store_true", help="Scan logs and save session record")
+    parser.add_argument("--enable-logging", action="store_true", help="Install opencode session logger wrapper")
+    parser.add_argument("--manual-session", action="store_true", help="Manually record a session from pasted content")
 
     parser.add_argument("--skills", action="store_true", help="List installed skills")
     parser.add_argument("--skills-search", type=str, default=None, help="Search skills on skills.sh")
     parser.add_argument("--skills-install", type=str, default=None, help="Install a skill (owner/repo/name)")
     parser.add_argument("--skills-remove", type=str, default=None, help="Remove an installed skill")
+
+    # Auto-session and continuity
+    parser.add_argument("--auto-enable", action="store_true",
+                        help="Enable automatic session saving for this project")
+    parser.add_argument("--auto-disable", action="store_true",
+                        help="Disable automatic session saving for this project")
+    parser.add_argument("--project-status", action="store_true",
+                        help="Show project continuity status and session history")
+    parser.add_argument("--project-health", action="store_true",
+                        help="Show project health report")
+    parser.add_argument("--continue", dest="continue_session", action="store_true",
+                        help="Show re-entry context from last session")
+    parser.add_argument("--list-tasks", action="store_true",
+                        help="List pending tasks from last session")
+    parser.add_argument("--complete-task", type=int, default=None,
+                        help="Mark a pending task as complete by index")
 
     parser.add_argument("--mcp-status", action="store_true", help="Show MCP servers and tools")
     parser.add_argument("--mcp-add", type=str, default=None, help="Add MCP server from template (filesystem, sqlite, github)")
@@ -648,6 +988,14 @@ def main():
         run_summarize(working_root=working_root)
         return
 
+    if args.enable_logging:
+        run_enable_logging()
+        return
+
+    if args.manual_session:
+        run_manual_session(working_root=working_root)
+        return
+
     if args.skills:
         run_skills_list(working_root=working_root)
         return
@@ -662,6 +1010,34 @@ def main():
 
     if args.skills_remove:
         run_skills_remove(args.skills_remove, working_root=working_root)
+        return
+
+    if args.auto_enable:
+        run_auto_enable(working_root=working_root)
+        return
+
+    if args.auto_disable:
+        run_auto_disable(working_root=working_root)
+        return
+
+    if args.project_status:
+        run_project_status(working_root=working_root)
+        return
+
+    if args.project_health:
+        run_project_health(working_root=working_root)
+        return
+
+    if args.continue_session:
+        run_continue_session(working_root=working_root)
+        return
+
+    if args.list_tasks:
+        run_list_tasks(working_root=working_root)
+        return
+
+    if args.complete_task is not None:
+        run_complete_task(args.complete_task, working_root=working_root)
         return
 
     print_header()
@@ -709,6 +1085,11 @@ def main():
                 "Uninstall globally",
                 "View sessions",
                 "View skills",
+                "Enable auto-session",
+                "Project status",
+                "Project health",
+                "Continue last session",
+                "List pending tasks",
                 "Exit",
             ]
         ).ask()
@@ -750,6 +1131,16 @@ def main():
             run_sessions_list(working_root=working_root)
         elif choice == "View skills":
             run_skills_list(working_root=working_root)
+        elif choice == "Enable auto-session":
+            run_auto_enable(working_root=working_root)
+        elif choice == "Project status":
+            run_project_status(working_root=working_root)
+        elif choice == "Project health":
+            run_project_health(working_root=working_root)
+        elif choice == "Continue last session":
+            run_continue_session(working_root=working_root)
+        elif choice == "List pending tasks":
+            run_list_tasks(working_root=working_root)
 
 
 if __name__ == "__main__":
