@@ -11,6 +11,7 @@ from continuity import ContinuityManager
 from project_db import ProjectDB
 
 SYSTEM_ROOT = Path(__file__).parent.resolve()
+from plan_fallback import FallbackManager
 
 
 def check_dependencies():
@@ -657,6 +658,102 @@ def run_complete_task(task_index: int, working_root=None):
     cm.close()
 
 
+def run_fallback_status(working_root=None):
+    """Show current fallback status."""
+    from cli.ui import console
+    from utils import resolve_working_root
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    fm = FallbackManager(project_root=working_root)
+    status = fm.get_status()
+
+    console.print("\n[bold cyan]=== Fallback Status ===[/bold cyan]\n")
+
+    if status["active"]:
+        console.print("  [yellow]FALLBACK ACTIVE[/yellow]")
+        console.print(f"  Current plan:  [bold]{status['current_plan']}[/bold]")
+        console.print(f"  Original plan: [dim]{status['original_plan']}[/dim]")
+        console.print(f"  Switch count:  {status['fallback_count']}")
+        console.print(f"  Last switch:   {status.get('last_fallback_at', 'N/A')}")
+        console.print("")
+        console.print("[dim]Reset with: python main.py --reset-fallback[/dim]")
+    else:
+        console.print("  [green]No fallback active[/green]")
+        console.print(f"  Current plan: [bold]{status['current_plan']}[/bold]")
+
+    if status.get("history"):
+        console.print("\n[bold]History:[/bold]")
+        for event in status["history"][-5:]:
+            ts = event.get("timestamp", "")[:19]
+            action = event.get("action", event.get("from_plan", "?"))
+            to_p = event.get("to_plan", "?")
+            reason = event.get("reason", "")[:60]
+            console.print(f"  [dim]{ts}[/dim] {action} -> {to_p} | {reason}")
+
+    next_fb = status.get("next_fallback")
+    if next_fb:
+        console.print(f"\n[dim]Next fallback available: {next_fb}[/dim]")
+
+    console.print("")
+
+
+def run_force_fallback(target_plan="zen", working_root=None):
+    """Force fallback to a specific plan."""
+    from cli.ui import console, print_success, print_error
+    from utils import resolve_working_root
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    fm = FallbackManager(project_root=working_root)
+    event = fm.force_fallback(target_plan)
+
+    if event:
+        print_success(f"Forced fallback to plan '{target_plan}'")
+        console.print(f"[dim]Run: python main.py --reset-fallback to restore[/dim]")
+    else:
+        print_error(f"Failed to force fallback to '{target_plan}'")
+
+
+def run_reset_fallback(working_root=None):
+    """Reset fallback and return to original plan."""
+    from cli.ui import console, print_success
+    from utils import resolve_working_root
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    fm = FallbackManager(project_root=working_root)
+    event = fm.reset_fallback()
+
+    if event:
+        original = event.get("to_plan", "go")
+        print_success(f"Fallback reset. Returned to plan '{original}'")
+    else:
+        console.print("[yellow]No fallback was active.[/yellow]")
+    from cli.ui import console, print_success, print_error
+    from utils import resolve_working_root
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    cm = ContinuityManager(project_root=working_root)
+
+    if not cm.has_history():
+        print_error("No session history found.")
+        cm.close()
+        return
+
+    if cm.db.mark_task_complete(task_index):
+        print_success(f"Task [{task_index}] marked as complete.")
+    else:
+        print_error(f"Could not complete task [{task_index}]. Check the index.")
+
+    cm.close()
+
+
 def run_mcp_status(working_root=None):
     """Show MCP server status and available tools."""
     from cli.ui import console, print_success, print_error
@@ -907,6 +1004,12 @@ def main():
                         help="List pending tasks from last session")
     parser.add_argument("--complete-task", type=int, default=None,
                         help="Mark a pending task as complete by index")
+    parser.add_argument("--fallback-status", action="store_true",
+                        help="Show current fallback status")
+    parser.add_argument("--force-fallback", type=str, default=None, nargs="?",
+                        const="zen", help="Force fallback to a plan (default: zen)")
+    parser.add_argument("--reset-fallback", action="store_true",
+                        help="Reset fallback and return to original plan")
 
     parser.add_argument("--mcp-status", action="store_true", help="Show MCP servers and tools")
     parser.add_argument("--mcp-add", type=str, default=None, help="Add MCP server from template (filesystem, sqlite, github)")

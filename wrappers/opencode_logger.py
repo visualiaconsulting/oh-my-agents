@@ -15,6 +15,7 @@ import subprocess
 import threading
 from pathlib import Path
 from datetime import datetime
+from plan_fallback import FallbackManager
 import json
 import hashlib
 
@@ -112,6 +113,43 @@ def stream_and_log(process, log_file):
             sys.stdout.write(line)
             sys.stdout.flush()
 
+
+
+
+def check_and_trigger_fallback(project_root, log_content, args):
+    """Check log content for credit errors and trigger fallback if needed."""
+    try:
+        fm = FallbackManager(project_root)
+        
+        if not fm.detect_credit_error(log_content):
+            return False
+        
+        current_plan = os.getenv("OPENCODE_PLAN", "go")
+        
+        if fm.is_fallback_active():
+            return False
+        
+        next_plan = fm.get_next_fallback_plan(current_plan)
+        if not next_plan:
+            return False
+        
+        reason = ""
+        for line in log_content.splitlines():
+            if fm.detect_credit_error(line):
+                reason = line.strip()[:200]
+                break
+        
+        event = fm.trigger_fallback(current_plan, reason)
+        if event:
+            print(f"\n[oh-my-agents] WARNING: Credits exhausted on plan '{current_plan}'", file=sys.stderr)
+            print(f"[oh-my-agents] Reason: {reason}", file=sys.stderr)
+            print(f"[oh-my-agents] Auto-switching to plan '{next_plan}' (free models)", file=sys.stderr)
+            print(f"[oh-my-agents] Run: python main.py --reset-fallback to restore original plan", file=sys.stderr)
+            return True
+        
+        return False
+    except Exception:
+        return False
 
 def auto_save_session(project_root, log_filepath, returncode, duration_seconds, args):
     """Auto-save a session record to the project database after OpenCode exits.
@@ -332,6 +370,14 @@ def run():
         with open(log_filepath, "a", encoding="utf-8") as lf:
             lf.write(footer)
     except (IOError, OSError):
+        pass
+
+    # Check for credit errors and trigger fallback if needed
+    try:
+        with open(log_filepath, "r", encoding="utf-8") as lf:
+            log_content = lf.read()
+        check_and_trigger_fallback(project_root, log_content, args)
+    except Exception:
         pass
 
     # Auto-save session if enabled

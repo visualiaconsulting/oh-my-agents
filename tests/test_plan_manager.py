@@ -56,11 +56,11 @@ class TestGetModel:
 
     def test_orchestrator_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("orchestrator") == "opencode-go/kimi-k2.6"
+        assert pm.get_model("orchestrator") == "opencode-go/deepseek-v4-pro"
 
     def test_code_analyst_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("code-analyst") == "opencode-go/deepseek-v4-pro"
+        assert pm.get_model("code-analyst") == "opencode-go/deepseek-v4-flash"
 
     def test_validator_model(self, clean_env):
         pm = PlanManager()
@@ -68,7 +68,7 @@ class TestGetModel:
 
     def test_bulk_processor_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("bulk-processor") == "opencode-go/deepseek-v4-flash"
+        assert pm.get_model("bulk-processor") == "opencode-go/minimax-m2.7"
 
     def test_subagent_model(self, clean_env):
         pm = PlanManager()

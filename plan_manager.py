@@ -6,6 +6,8 @@ import os
 import json
 from pathlib import Path
 from typing import Dict, Optional
+from plan_fallback import FallbackManager, ZEN_FREE_MODELS
+
 
 class PlanManager:
     # Plan-to-model mapping by role
@@ -78,15 +80,41 @@ class PlanManager:
             "fallback": os.getenv("ENT_FALLBACK", "opencode-go/minimax-m2.5")
         },
         "openrouter": {
+            # Optimized for $2 USD budget - cheapest models with best performance/token ratio
+            # DeepSeek V3 ($0.008 in / $0.032 out per 1M) - used by 5/8 agents
+            # Mistral Small ($0.020 in / $0.030 out per 1M) - cheapest output for bulk
+            # Qwen3.5-Flash ($0.065 in / $0.260 out per 1M) - 1M context for validation
             "orchestrator": os.getenv("OR_OPENROUTER", "openrouter/deepseek/deepseek-v3"),
             "code-analyst": os.getenv("OR_ANALYST", "openrouter/deepseek/deepseek-v3"),
-            "validator": os.getenv("OR_VALIDATOR", "openrouter/qwen/qwen-2.5-72b-instruct"),
-            "bulk-processor": os.getenv("OR_BULK", "openrouter/qwen/qwen-2.5-32b-instruct"),
-            "subagent": os.getenv("OR_SUBAGENT", "openrouter/meta-llama/llama-3.3-70b"),
-            "summarizer": os.getenv("OR_SUMMARIZER", "openrouter/openai/gpt-4o-mini"),
-            "frontend": os.getenv("OR_FRONTEND", "openrouter/qwen/qwen-2.5-32b-instruct"),
-            "ml-specialist": os.getenv("OR_ML", "openrouter/openai/gpt-4o-mini"),
-            "fallback": os.getenv("OR_FALLBACK", "openrouter/openai/gpt-4o-mini")
+            "validator": os.getenv("OR_VALIDATOR", "openrouter/qwen/qwen3.5-flash"),
+            "bulk-processor": os.getenv("OR_BULK", "openrouter/mistralai/mistral-small"),
+            "subagent": os.getenv("OR_SUBAGENT", "openrouter/meta-llama/llama-3.1-8b-instruct"),
+            "summarizer": os.getenv("OR_SUMMARIZER", "openrouter/deepseek/deepseek-v3"),
+            "frontend": os.getenv("OR_FRONTEND", "openrouter/deepseek/deepseek-v3"),
+            "ml-specialist": os.getenv("OR_ML", "openrouter/deepseek/deepseek-v3"),
+            "fallback": os.getenv("OR_FALLBACK", "openrouter/deepseek/deepseek-v3"),
+            # Free model alternatives (no balance needed)
+            "free_orchestrator": "openrouter/google/gemma-2-9b-it:free",
+            "free_analyst": "openrouter/qwen/qwen2.5-7b-instruct:free",
+            "free_validator": "openrouter/meta-llama/llama-3.1-8b-instruct:free",
+            "free_bulk": "openrouter/mistralai/mistral-small-3.1-24b-instruct:free",
+            "free_subagent": "openrouter/meta-llama/llama-3.1-8b-instruct:free",
+            "free_summarizer": "openrouter/google/gemma-2-9b-it:free",
+            "free_frontend": "openrouter/qwen/qwen2.5-7b-instruct:free",
+            "free_ml": "openrouter/qwen/qwen2.5-7b-instruct:free",
+            "free_fallback": "openrouter/google/gemma-2-9b-it:free",
+            "all_available": [
+                "openrouter/deepseek/deepseek-v3",
+                "openrouter/qwen/qwen3.5-flash",
+                "openrouter/mistralai/mistral-small",
+                "openrouter/meta-llama/llama-3.1-8b-instruct",
+                "openrouter/google/gemma-2-9b-it:free",
+                "openrouter/qwen/qwen2.5-7b-instruct:free",
+                "openrouter/meta-llama/llama-3.1-8b-instruct:free",
+                "openrouter/mistralai/mistral-small-3.1-24b-instruct:free",
+                "openrouter/google/gemma-3-12b-it:free",
+                "openrouter/nvidia/llama-3.1-nemotron-ultra-253b-v1:free",
+            ]
         },
         "copilot": {
             "orchestrator": "copilot/claude-sonnet-4",
@@ -109,6 +137,27 @@ class PlanManager:
             "frontend": os.getenv("OLLAMA_FRONTEND", "ollama/qwen2.5-coder:7b"),
             "ml-specialist": os.getenv("OLLAMA_ML", "ollama/qwen2.5-coder:7b"),
             "fallback": os.getenv("OLLAMA_FALLBACK", "ollama/phi3:3.8b")
+        },
+        "free": {
+            # 100% free models - no API key or balance needed
+            # Uses OpenRouter free tier (25+ models, rate-limited but functional)
+            "orchestrator": os.getenv("FREE_ORCH", "openrouter/google/gemma-2-9b-it:free"),
+            "code-analyst": os.getenv("FREE_ANALYST", "openrouter/qwen/qwen2.5-7b-instruct:free"),
+            "validator": os.getenv("FREE_VALIDATOR", "openrouter/meta-llama/llama-3.1-8b-instruct:free"),
+            "bulk-processor": os.getenv("FREE_BULK", "openrouter/mistralai/mistral-small-3.1-24b-instruct:free"),
+            "subagent": os.getenv("FREE_SUB", "openrouter/meta-llama/llama-3.1-8b-instruct:free"),
+            "summarizer": os.getenv("FREE_SUMMARIZER", "openrouter/google/gemma-2-9b-it:free"),
+            "frontend": os.getenv("FREE_FRONTEND", "openrouter/qwen/qwen2.5-7b-instruct:free"),
+            "ml-specialist": os.getenv("FREE_ML", "openrouter/qwen/qwen2.5-7b-instruct:free"),
+            "fallback": os.getenv("FREE_FALLBACK", "openrouter/google/gemma-2-9b-it:free"),
+            "all_available": [
+                "openrouter/google/gemma-2-9b-it:free",
+                "openrouter/qwen/qwen2.5-7b-instruct:free",
+                "openrouter/meta-llama/llama-3.1-8b-instruct:free",
+                "openrouter/mistralai/mistral-small-3.1-24b-instruct:free",
+                "openrouter/google/gemma-3-12b-it:free",
+                "openrouter/nvidia/llama-3.1-nemotron-ultra-253b-v1:free",
+            ]
         }
     }
     
@@ -118,9 +167,10 @@ class PlanManager:
         "zen": {"daily": 2000, "weekly": 10000, "monthly": 40000},
         "api": {"daily": "variable", "weekly": "variable", "monthly": "variable"},
         "enterprise": {"daily": "custom", "weekly": "custom", "monthly": "custom"},
-        "openrouter": {"daily": "variable", "weekly": "variable", "monthly": "variable"},
+        "openrouter": {"daily": "$2 budget ~50M tokens", "weekly": "$2 budget ~50M tokens", "monthly": "$2 budget ~50M tokens"},
         "copilot": {"daily": "included", "weekly": "included", "monthly": "included"},
-        "ollama": {"daily": "unlimited", "weekly": "unlimited", "monthly": "unlimited"}
+        "ollama": {"daily": "unlimited", "weekly": "unlimited", "monthly": "unlimited"},
+        "free": {"daily": "100 req/60s limit", "weekly": "unlimited", "monthly": "unlimited"}
     }
     
     def __init__(self, plan: Optional[str] = None, project_root: Optional[Path] = None):
@@ -160,6 +210,12 @@ class PlanManager:
         if os.getenv("OLLAMA_HOST"):
             return "ollama"
         
+        # 7. Detect free plan (no balance needed)
+        if os.getenv("OPENCODE_PLAN", "").lower() == "free":
+            return "free"
+        if os.getenv("FREE_MODE"):
+            return "free"
+        
         return "go"
 
     def get_available_models(self) -> list:
@@ -171,6 +227,22 @@ class PlanManager:
     def get_model(self, role: str) -> str:
         """Gets the model for a role, with fallback if not available"""
         return self.models.get(role, self.models.get("fallback"))
+    
+    def get_free_model(self, role: str) -> str:
+        """Get the free model for a role (no balance needed).
+        
+        Falls back to free_fallback if the role is not found.
+        Works with any plan - always returns the free alternative.
+        """
+        role_map = {
+            "code-analyst": "free_analyst",
+            "bulk-processor": "free_bulk",
+            "ml-specialist": "free_ml",
+        }
+        free_key = role_map.get(role, "free_" + role.replace("-", "_"))
+        return (self.PLAN_MODELS.get("openrouter", {}).get(free_key) or
+                self.PLAN_MODELS.get("free", {}).get(free_key) or
+                self.get_model(role))
     
     def validate_models(self):
         """Validate that agent models in .opencode/agents/*.md exist in the registry.
@@ -226,3 +298,29 @@ class PlanManager:
             "requires_api_keys": self.plan == "api",
             "auto_fallback": True
         }
+
+
+    def get_fallback_plan(self) -> Optional[str]:
+        """Get the fallback plan if current plan runs out of credits."""
+        from plan_fallback import FALLBACK_CHAIN
+        return FALLBACK_CHAIN.get(self.plan)
+
+    def switch_to_fallback(self, reason: str = "") -> Optional[dict]:
+        """Switch to the fallback plan."""
+        fm = FallbackManager(self.project_root)
+        event = fm.trigger_fallback(self.plan, reason)
+        if event:
+            self.plan = event["to_plan"]
+            self.models = self.PLAN_MODELS.get(self.plan, self.PLAN_MODELS["go"])
+            self.limits = self.PLAN_LIMITS.get(self.plan, self.PLAN_LIMITS["go"])
+        return event
+
+    def get_active_plan_name(self) -> str:
+        """Get the currently active plan name."""
+        fm = FallbackManager(self.project_root)
+        return fm.get_active_plan() or os.getenv("OPENCODE_PLAN") or self.plan
+
+    def is_using_fallback(self) -> bool:
+        """Check if the system is using a fallback plan."""
+        fm = FallbackManager(self.project_root)
+        return fm.is_fallback_active()
