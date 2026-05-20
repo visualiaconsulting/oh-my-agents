@@ -138,6 +138,14 @@ class PlanManager:
             "ml-specialist": os.getenv("OLLAMA_ML", "ollama/qwen2.5-coder:7b"),
             "fallback": os.getenv("OLLAMA_FALLBACK", "ollama/phi3:3.8b")
         },
+        "lmstudio": {
+            "orquestador": os.getenv("LMSTUDIO_ORCH", "lmstudio/qwen2.5-coder-3b-instruct"),
+            "proptech_expert": os.getenv("LMSTUDIO_PROPTECH", "lmstudio/nemotron-3-nano-4b"),
+            "prompt_crafter": os.getenv("LMSTUDIO_CRAFTER", "lmstudio/gemma-4-e4b"),
+            "python_architect": os.getenv("LMSTUDIO_ARCHITECT", "lmstudio/deepseek-r1-0528"),
+            "qa_reviewer": os.getenv("LMSTUDIO_QA", "lmstudio/deepseek-r1-0528"),
+            "fallback": os.getenv("LMSTUDIO_FALLBACK", "lmstudio/qwen2.5-coder-3b-instruct")
+        },
         "free": {
             # 100% free models - no API key or balance needed
             # Uses OpenRouter free tier (25+ models, rate-limited but functional)
@@ -170,6 +178,7 @@ class PlanManager:
         "openrouter": {"daily": "$2 budget ~50M tokens", "weekly": "$2 budget ~50M tokens", "monthly": "$2 budget ~50M tokens"},
         "copilot": {"daily": "included", "weekly": "included", "monthly": "included"},
         "ollama": {"daily": "unlimited", "weekly": "unlimited", "monthly": "unlimited"},
+        "lmstudio": {"daily": "unlimited", "weekly": "unlimited", "monthly": "unlimited"},
         "free": {"daily": "100 req/60s limit", "weekly": "unlimited", "monthly": "unlimited"}
     }
     
@@ -210,13 +219,32 @@ class PlanManager:
         if os.getenv("OLLAMA_HOST"):
             return "ollama"
         
-        # 7. Detect free plan (no balance needed)
+        # 7. Detect LM Studio (local) - check env var or API availability
+        if os.getenv("LMSTUDIO_HOST"):
+            return "lmstudio"
+        if self._check_lmstudio_available():
+            return "lmstudio"
+        
+        # 8. Detect free plan (no balance needed)
         if os.getenv("OPENCODE_PLAN", "").lower() == "free":
             return "free"
         if os.getenv("FREE_MODE"):
             return "free"
         
         return "go"
+
+    def _check_lmstudio_available(self) -> bool:
+        """Check if LM Studio is running with API server enabled"""
+        import urllib.request
+        try:
+            req = urllib.request.Request(
+                "http://localhost:1234/v1/models",
+                method="GET"
+            )
+            urllib.request.urlopen(req, timeout=2)
+            return True
+        except Exception:
+            return False
 
     def get_available_models(self) -> list:
         """Returns a list of available model names for the current plan"""

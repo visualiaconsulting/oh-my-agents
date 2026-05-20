@@ -18,6 +18,16 @@ The available agents are:
 - **@frontend** — UI specialist — React, TypeScript, Tailwind. Model: opencode-go/qwen3.6-plus (SWE-Bench Verified 78.8%)
 - **@ml-specialist** — ML and data pipeline specialist. Model: opencode-go/minimax-m2.7 (MLE-Bench Lite 66.6%)
 
+### LM Studio Local Plan
+
+When LM Studio is running with API server enabled (localhost:1234), the system detects the "lmstudio" plan automatically. Available local agents:
+
+- **@orquestador** — Coordinator. Model: lmstudio/qwen2.5-coder-3b-instruct
+- **@proptech_expert** — PropTech specialist. Model: lmstudio/nemotron-3-nano-4b
+- **@prompt_crafter** — Prompt engineer. Model: lmstudio/gemma-4-e4b
+- **@python_architect** — Python architect. Model: lmstudio/deepseek-r1-0528
+- **@qa_reviewer** — QA reviewer. Model: lmstudio/deepseek-r1-0528
+
 To use in another project, copy `.opencode/agents/` to the target project
 and modify this `CONTEXT.md` with the description of the actual project.
 

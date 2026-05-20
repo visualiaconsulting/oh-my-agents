@@ -12,6 +12,7 @@ from project_db import ProjectDB
 
 SYSTEM_ROOT = Path(__file__).parent.resolve()
 from plan_fallback import FallbackManager
+import json
 
 
 def check_dependencies():
@@ -717,6 +718,53 @@ def run_force_fallback(target_plan="zen", working_root=None):
         print_error(f"Failed to force fallback to '{target_plan}'")
 
 
+
+
+def run_change_plan(working_root=None):
+    """Interactive plan selection - budget friendly only."""
+    from cli.ui import console, print_success, print_error
+    from utils import resolve_working_root
+    import questionary
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    from plan_manager import PlanManager
+    pm = PlanManager(project_root=working_root)
+    current = pm.plan
+
+    console.print(f"\n[bold cyan]=== Current Plan: {current} ===[/bold cyan]\n")
+
+    # Budget-friendly plans only (NO Anthropic, OpenAI, Google expensive)
+    plans = [
+        {"name": "go", "desc": "OpenCode Go (default) - 5000 tokens/dia", "note": "FREE"},
+        {"name": "openrouter", "desc": "OpenRouter - DeepSeek V3, Qwen, Mistral", "note": ".04-0.33/M"},
+        {"name": "zen", "desc": "Zen - Hy3, Ling-2.6, Nemotron FREE", "note": "FREE"},
+        {"name": "free", "desc": "Free - OpenRouter free models", "note": "FREE"},
+        {"name": "ollama", "desc": "Ollama - Modelos locales (sin internet)", "note": "FREE"},
+        {"name": "lmstudio", "desc": "LM Studio - Modelos locales (auto-detect)", "note": "FREE"},
+    ]
+
+    choices = [f"{p['name']} | {p['desc']} [{p['note']}]" for p in plans]
+
+    selected = questionary.select(
+        "Select a plan:",
+        choices=choices
+    ).ask()
+
+    if selected:
+        selected_plan = selected.split(" | ")[0]
+
+        config_path = working_root / ".opencode" / "plan.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump({"plan": selected_plan}, f)
+
+        print_success(f"Plan changed to: {selected_plan}")
+        console.print(f"[dim]Config saved to: {config_path}[/dim]")
+        console.print(f"[dim]Restart opencode to use new plan.[/dim]")
+
+
 def run_reset_fallback(working_root=None):
     """Reset fallback and return to original plan."""
     from cli.ui import console, print_success
@@ -1010,6 +1058,8 @@ def main():
                         const="zen", help="Force fallback to a plan (default: zen)")
     parser.add_argument("--reset-fallback", action="store_true",
                         help="Reset fallback and return to original plan")
+    parser.add_argument("--set-plan", type=str, default=None, dest="set_plan",
+                        help="Set plan directly (go, openrouter, zen, free, ollama)")
 
     parser.add_argument("--mcp-status", action="store_true", help="Show MCP servers and tools")
     parser.add_argument("--mcp-add", type=str, default=None, help="Add MCP server from template (filesystem, sqlite, github)")
@@ -1193,6 +1243,7 @@ def main():
                 "Project health",
                 "Continue last session",
                 "List pending tasks",
+                "Change plan",
                 "Exit",
             ]
         ).ask()
