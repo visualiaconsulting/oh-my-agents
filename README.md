@@ -29,7 +29,8 @@
 | 🔐 **Least-Privilege Permissions** | Validator is read-only. Orchestrator only delegates. Code-analyst writes and executes. |
 | 📝 **Session Continuity** | Never lose context between sessions. Automatic bitacora saves errors, changes, and pending tasks |
 | 🧩 **Skills Ecosystem** | Extend agent capabilities with reusable skills from [skills.sh](https://skills.sh) |
-| 🔄 **Multi-Plan Support** | Works with OpenCode Go, Zen, API, Enterprise, OpenRouter, Copilot, and Ollama via `PlanManager` |
+| 🔄 **Go-Only Standard** | Plan Go es el único plan por defecto. Sin fallback automático — reinstala si te quedas sin créditos |
+| 🖥️ **LM Studio Integration** | Detecta modelos locales, asigna roles por tamaño, uso ilimitado sin API key (v1.7.0) |
 | 🚀 **Zero Config Start** | Clone, run setup, start coding. The wizard handles the rest |
 | 📦 **Portable** | Copy agents to any project — they adapt via `context.md` |
 | 🗄️ **Project Database** | SQLite DB per project stores sessions, file changes, errors, commands (v1.6.0) |
@@ -498,7 +499,7 @@ opencode --agent orchestrator
 
 ## ⚙️ PlanManager
 
-The `PlanManager` automatically detects your active OpenCode plan and selects the optimal models for each agent role.
+The `PlanManager` uses **Go plan as the only standard**. Other plans require explicit installation.
 
 ```python
 from plan_manager import PlanManager
@@ -506,20 +507,35 @@ from plan_manager import PlanManager
 pm = PlanManager()
 print(f"Plan detected: {pm.plan}")
 print(f"Orchestrator model: {pm.get_model('orchestrator')}")
-print(f"Available models: {pm.get_available_models()}")
 ```
 
 ### Supported Plans
 
-| Plan | Detection Method | Orchestrator Model |
-|------|------------------|-------------------|
-| **Go** (default) | Default or `OPENCODE_PLAN=go` | `opencode-go/kimi-k2.6` |
-| **Zen** | `GITHUB_TOKEN` or `COPILOT_TOKEN` | `opencode/claude-sonnet-4.5` |
-| **API** | `ANTHROPIC_API_KEY` | `anthropic/claude-sonnet-4` (configurable) |
-| **Enterprise** | `OPENCODE_PLAN=enterprise` | `opencode-go/kimi-k2.6` (configurable) |
-| **OpenRouter** | `OPENROUTER_API_KEY` | `openrouter/anthropic/claude-sonnet-4.5` (configurable) |
-| **Copilot** | Active GitHub Copilot | `copilot/claude-sonnet-4` |
-| **Ollama** | `OLLAMA_HOST` or Ollama running | `ollama/llama3.3:70b` (configurable) |
+| Plan | How to Activate | Orchestrator Model |
+|------|-----------------|-------------------|
+| **Go** (default) | Always active | `opencode-go/deepseek-v4-pro` |
+| **LM Studio** | `python main.py --install-lmstudio` | `lmstudio/<detected-model>` |
+
+> **No auto-detection:** LM Studio, Zen, API, OpenRouter, Copilot, and Ollama are no longer auto-detected. Go is the only standard plan. If you run out of credits, reinstall oh-my-agents globally or per-project.
+
+### LM Studio Integration (v1.7.0)
+
+LM Studio provides unlimited local inference with no API key needed. Models are auto-detected via the REST API and roles are assigned by size (largest = orchestrator).
+
+| Command | Description |
+|---------|-------------|
+| `python main.py --install-lmstudio` | Auto-detect models, assign roles by size |
+| `python main.py --install-lmstudio-manual` | Manually assign models to roles |
+| `python main.py --lmstudio-status` | Show server status and current assignments |
+| `python main.py --reset-go` | Restore Go plan from backup |
+
+**How role assignment works:**
+1. Connects to `http://localhost:1234/api/v0/models`
+2. Filters LLM models (excludes embeddings)
+3. Sorts by parameter size (7B, 14B, 32B...)
+4. Assigns: largest → orchestrator, 2nd → code-analyst, etc.
+5. Code models get a boost for the code-analyst role
+6. Backs up Go agents before replacing them
 
 ---
 
@@ -529,7 +545,9 @@ print(f"Available models: {pm.get_available_models()}")
 oh-my-agents/
 ├── README.md                    # This file
 ├── AGENTS.md                    # Detailed agent state & changelog
-├── plan_manager.py              # Model selection logic per plan
+├── plan_manager.py              # Go-only plan manager + lmstudio via plan.json
+├── plan_fallback.py             # Simplified fallback (manual reset only)
+├── lmstudio_manager.py          # LM Studio detection, ranking, role assignment
 ├── main.py                      # CLI for the multi-agent system
 ├── session_manager.py           # Session logging and continuity
 ├── skill_registry.py            # Skills download and management
@@ -543,9 +561,10 @@ oh-my-agents/
 │   └── ui.py                    # Rich terminal UI components
 ├── tests/
 │   ├── conftest.py              # Shared fixtures
-│   ├── test_plan_manager.py     # 22 tests
-│   ├── test_wizard.py           # 17 tests
-│   └── test_main.py             # 15 tests
+│   ├── test_plan_manager.py     # Go-only tests
+│   ├── test_lmstudio.py         # LM Studio manager tests
+│   ├── test_wizard.py           # Wizard tests
+│   └── test_main.py             # Main CLI tests
 └── .opencode/
     ├── context.md               # Global context injected to all agents
     ├── sessions/                # Session records (gitignored)
@@ -581,10 +600,46 @@ oh-my-agents/
 | `--version` | Show current version |
 | `--check-updates` | Check if a newer version is available on GitHub |
 | `--update` | Update oh-my-agents to the latest release |
+| `--install-lmstudio` | Install LM Studio agents (auto-assign roles by model size) |
+| `--install-lmstudio-manual` | Install LM Studio agents with manual role assignment |
+| `--lmstudio-status` | Show LM Studio server status and model assignments |
+| `--reset-go` | Reset to Go plan, restore backed up agents |
 
 ---
 
 ## 📝 Changelog
+
+### v1.7.0 — LM Studio Integration & Go-Only Standard (May 2026)
+
+**New features:**
+- **LM Studio Manager (`lmstudio_manager.py`):** Detects LM Studio server, lists downloaded models, ranks by size, assigns roles automatically or manually
+- **Auto role assignment:** Largest model → orchestrator, 2nd → code-analyst, etc. Code models get a boost for code-analyst role
+- **Manual mode:** User selects which model goes to each role via interactive menu
+- **Backup & restore:** Go agents are backed up before LM Studio install; `--reset-go` restores them
+
+**New CLI commands:**
+| Command | Description |
+|---------|-------------|
+| `--install-lmstudio` | Auto-detect models, assign roles by size |
+| `--install-lmstudio-manual` | Manually assign models to roles |
+| `--lmstudio-status` | Show server status and current assignments |
+| `--reset-go` | Restore Go plan from backup |
+
+**Breaking changes:**
+- **Go-only standard:** `_detect_plan()` always returns `"go"` unless `plan.json` says `"lmstudio"`
+- **No auto-detection:** Zen, API, OpenRouter, Copilot, Ollama are no longer auto-detected
+- **No automatic fallback:** Removed `FALLBACK_CHAIN`, `ZEN_FREE_MODELS`, `get_free_model()`, `switch_to_fallback()`
+- **Removed agents:** `bugfix210526.md`, `orquestador.md`, `proptech_expert.md`, `prompt_crafter.md`, `python_architect.md`, `qa_reviewer.md`
+
+**Files changed:**
+- `lmstudio_manager.py` — New: LM Studio detection, ranking, role assignment
+- `plan_manager.py` — Simplified: Go-only, lmstudio via plan.json
+- `plan_fallback.py` — Simplified: no automatic fallback chain
+- `main.py` — 4 new commands + interactive menu options
+- `tests/test_lmstudio.py` — New: 16 tests for LM Studio manager
+- `tests/test_plan_manager.py` — Updated for Go-only behavior
+
+**Tests:** 158 passing
 
 ### v1.6.0 — Project Database & Auto-Session Continuity (May 2026)
 
