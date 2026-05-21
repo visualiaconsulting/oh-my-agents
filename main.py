@@ -676,114 +676,10 @@ def run_complete_task(task_index: int, working_root=None):
     cm.close()
 
 
-def run_fallback_status(working_root=None):
-    """Show current fallback status."""
-    from cli.ui import console
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    fm = FallbackManager(project_root=working_root)
-    status = fm.get_status()
-
-    console.print("\n[bold cyan]=== Fallback Status ===[/bold cyan]\n")
-
-    if status["active"]:
-        console.print("  [yellow]FALLBACK ACTIVE[/yellow]")
-        console.print(f"  Current plan:  [bold]{status['current_plan']}[/bold]")
-        console.print(f"  Original plan: [dim]{status['original_plan']}[/dim]")
-        console.print(f"  Switch count:  {status['fallback_count']}")
-        console.print(f"  Last switch:   {status.get('last_fallback_at', 'N/A')}")
-        console.print("")
-        console.print("[dim]Reset with: python main.py --reset-fallback[/dim]")
-    else:
-        console.print("  [green]No fallback active[/green]")
-        console.print(f"  Current plan: [bold]{status['current_plan']}[/bold]")
-
-    if status.get("history"):
-        console.print("\n[bold]History:[/bold]")
-        for event in status["history"][-5:]:
-            ts = event.get("timestamp", "")[:19]
-            action = event.get("action", event.get("from_plan", "?"))
-            to_p = event.get("to_plan", "?")
-            reason = event.get("reason", "")[:60]
-            console.print(f"  [dim]{ts}[/dim] {action} -> {to_p} | {reason}")
-
-    next_fb = status.get("next_fallback")
-    if next_fb:
-        console.print(f"\n[dim]Next fallback available: {next_fb}[/dim]")
-
-    console.print("")
-
-
-def run_force_fallback(target_plan="zen", working_root=None):
-    """Force fallback to a specific plan."""
-    from cli.ui import console, print_success, print_error
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    fm = FallbackManager(project_root=working_root)
-    event = fm.force_fallback(target_plan)
-
-    if event:
-        print_success(f"Forced fallback to plan '{target_plan}'")
-        console.print(f"[dim]Run: python main.py --reset-fallback to restore[/dim]")
-    else:
-        print_error(f"Failed to force fallback to '{target_plan}'")
-
-
-
-
-def run_change_plan(working_root=None):
-    """Interactive plan selection - budget friendly only."""
-    from cli.ui import console, print_success, print_error
-    from utils import resolve_working_root
-    import questionary
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    from plan_manager import PlanManager
-    pm = PlanManager(project_root=working_root)
-    current = pm.plan
-
-    console.print(f"\n[bold cyan]=== Current Plan: {current} ===[/bold cyan]\n")
-
-    # Budget-friendly plans only (NO Anthropic, OpenAI, Google expensive)
-    plans = [
-        {"name": "go", "desc": "OpenCode Go (default) - 5000 tokens/dia", "note": "FREE"},
-        {"name": "openrouter", "desc": "OpenRouter - DeepSeek V3, Qwen, Mistral", "note": ".04-0.33/M"},
-        {"name": "zen", "desc": "Zen - Hy3, Ling-2.6, Nemotron FREE", "note": "FREE"},
-        {"name": "free", "desc": "Free - OpenRouter free models", "note": "FREE"},
-        {"name": "ollama", "desc": "Ollama - Modelos locales (sin internet)", "note": "FREE"},
-        {"name": "lmstudio", "desc": "LM Studio - Modelos locales (auto-detect)", "note": "FREE"},
-    ]
-
-    choices = [f"{p['name']} | {p['desc']} [{p['note']}]" for p in plans]
-
-    selected = questionary.select(
-        "Select a plan:",
-        choices=choices
-    ).ask()
-
-    if selected:
-        selected_plan = selected.split(" | ")[0]
-
-        config_path = working_root / ".opencode" / "plan.json"
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump({"plan": selected_plan}, f)
-
-        print_success(f"Plan changed to: {selected_plan}")
-        console.print(f"[dim]Config saved to: {config_path}[/dim]")
-        console.print(f"[dim]Restart opencode to use new plan.[/dim]")
 
 
 def run_reset_fallback(working_root=None):
-    """Reset fallback and return to original plan."""
+    """Reset fallback and return to Go plan."""
     from cli.ui import console, print_success
     from utils import resolve_working_root
 
@@ -794,29 +690,138 @@ def run_reset_fallback(working_root=None):
     event = fm.reset_fallback()
 
     if event:
-        original = event.get("to_plan", "go")
-        print_success(f"Fallback reset. Returned to plan '{original}'")
+        print_success(f"Fallback reset. Returned to Go plan")
     else:
         console.print("[yellow]No fallback was active.[/yellow]")
+
+
+def run_install_lmstudio(working_root=None, manual=False):
+    """Install LM Studio agents with auto or manual role assignment."""
     from cli.ui import console, print_success, print_error
     from utils import resolve_working_root
 
     if working_root is None:
         working_root = resolve_working_root()
 
-    cm = ContinuityManager(project_root=working_root)
+    import lmstudio_manager as lm
 
-    if not cm.has_history():
-        print_error("No session history found.")
-        cm.close()
+    console.print("\n[bold cyan]=== LM Studio Setup ===[/bold cyan]\n")
+
+    if not lm.check_lmstudio_running():
+        print_error("LM Studio server is not running.")
+        console.print("[dim]1. Open LM Studio[/dim]")
+        console.print("[dim]2. Go to the Server tab[/dim]")
+        console.print("[dim]3. Click 'Start Server'[/dim]")
+        console.print("[dim]4. Run this command again[/dim]")
         return
 
-    if cm.db.mark_task_complete(task_index):
-        print_success(f"Task [{task_index}] marked as complete.")
-    else:
-        print_error(f"Could not complete task [{task_index}]. Check the index.")
+    status = lm.get_status()
+    models = status["models"]
 
-    cm.close()
+    if not models:
+        print_error("No LLM models found in LM Studio.")
+        console.print("[dim]Download models from the Discover tab in LM Studio.[/dim]")
+        return
+
+    console.print(f"[green]LM Studio running[/green] — {len(models)} LLM model(s) detected:\n")
+    for i, m in enumerate(models, 1):
+        loaded = " [green]loaded[/green]" if m["is_loaded"] else " [dim]not loaded[/dim]"
+        code_tag = " [yellow]code[/yellow]" if m["is_code"] else ""
+        console.print(f"  {i}. {m['display_name']} ({m['params_string']}, ctx={m['max_context_length']}){loaded}{code_tag}")
+
+    console.print("")
+
+    mode = "manual" if manual else "auto"
+    result = lm.install_lmstudio_agents(working_root, models, manual=manual)
+
+    print_success(f"Installed {result['count']} agent(s) for LM Studio plan")
+    console.print("\n[bold]Role assignments:[/bold]")
+    for a in result["installed"]:
+        console.print(f"  @{a['role']:<18} → {a['display']} ({a['params']})")
+
+    console.print(f"\n[dim]Go agents backed up to: {result['backup_dir']}[/dim]")
+    console.print("[dim]Run 'python main.py --reset-go' to restore Go plan.[/dim]")
+
+
+def run_lmstudio_status(working_root=None):
+    """Show LM Studio server status and model assignments."""
+    from cli.ui import console
+    from utils import resolve_working_root
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    import lmstudio_manager as lm
+
+    console.print("\n[bold cyan]=== LM Studio Status ===[/bold cyan]\n")
+
+    status = lm.get_status()
+
+    if status["running"]:
+        console.print("  [green]Server: RUNNING[/green]")
+        console.print(f"  Models: {status['model_count']} LLM(s)")
+
+        models = status["models"]
+        for i, m in enumerate(models, 1):
+            loaded = " [green]loaded[/green]" if m["is_loaded"] else ""
+            code_tag = " [yellow]code[/yellow]" if m["is_code"] else ""
+            console.print(f"    {i}. {m['display_name']} ({m['params_string']}){loaded}{code_tag}")
+
+        # Check current plan
+        from plan_manager import PlanManager
+        pm = PlanManager(project_root=working_root)
+        console.print(f"\n  Current plan: [bold]{pm.plan}[/bold]")
+
+        if pm.plan == "lmstudio":
+            # Show current agent assignments
+            agents_dir = working_root / ".opencode" / "agents"
+            if agents_dir.exists():
+                import yaml
+                console.print("\n  [bold]Agent assignments:[/bold]")
+                for md_file in sorted(agents_dir.glob("*.md")):
+                    try:
+                        content = md_file.read_text(encoding="utf-8")
+                        if content.startswith("---"):
+                            parts = content.split("---")
+                            if len(parts) >= 3:
+                                meta = yaml.safe_load(parts[1])
+                                name = meta.get("name", md_file.stem)
+                                model = meta.get("model", "")
+                                console.print(f"    @{name:<18} → {model}")
+                    except Exception:
+                        pass
+    else:
+        console.print("  [red]Server: NOT RUNNING[/red]")
+        console.print("[dim]Start LM Studio and enable the Server tab.[/dim]")
+
+    if status["error"]:
+        console.print(f"\n  [red]Error: {status['error']}[/red]")
+
+    console.print("")
+
+
+def run_reset_go(working_root=None):
+    """Reset to Go plan, restore backed up agents."""
+    from cli.ui import console, print_success, print_error
+    from utils import resolve_working_root
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    import lmstudio_manager as lm
+
+    console.print("\n[bold cyan]=== Reset to Go Plan ===[/bold cyan]\n")
+
+    result = lm.reset_to_go(working_root)
+
+    if result["restored"] > 0:
+        print_success(f"Restored {result['restored']} Go agent(s)")
+        console.print("[dim]Plan reset to Go (default).[/dim]")
+    else:
+        console.print("[yellow]No Go backup found.[/yellow]")
+        console.print("[dim]Run 'python main.py --setup' to reconfigure Go agents.[/dim]")
+
+    console.print("")
 
 
 def run_mcp_status(working_root=None):
@@ -1069,19 +1074,23 @@ def main():
                         help="List pending tasks from last session")
     parser.add_argument("--complete-task", type=int, default=None,
                         help="Mark a pending task as complete by index")
-    parser.add_argument("--fallback-status", action="store_true",
-                        help="Show current fallback status")
-    parser.add_argument("--force-fallback", type=str, default=None, nargs="?",
-                        const="zen", help="Force fallback to a plan (default: zen)")
     parser.add_argument("--reset-fallback", action="store_true",
-                        help="Reset fallback and return to original plan")
-    parser.add_argument("--set-plan", type=str, default=None, dest="set_plan",
-                        help="Set plan directly (go, openrouter, zen, free, ollama)")
+                        help="Reset fallback and return to Go plan")
 
     parser.add_argument("--mcp-status", action="store_true", help="Show MCP servers and tools")
     parser.add_argument("--mcp-add", type=str, default=None, help="Add MCP server from template (filesystem, sqlite, github)")
     parser.add_argument("--skills-recommend", action="store_true", help="Analyze project and recommend skills")
     parser.add_argument("--skills-auto", action="store_true", help="Auto-install recommended skills without prompting")
+
+    # LM Studio
+    parser.add_argument("--install-lmstudio", action="store_true",
+                        help="Install LM Studio agents (auto-assign roles by model size)")
+    parser.add_argument("--install-lmstudio-manual", action="store_true",
+                        help="Install LM Studio agents with manual role assignment")
+    parser.add_argument("--lmstudio-status", action="store_true",
+                        help="Show LM Studio server status and model assignments")
+    parser.add_argument("--reset-go", action="store_true",
+                        help="Reset to Go plan, restore backed up agents")
 
     args = parser.parse_args()
 
@@ -1119,6 +1128,22 @@ def main():
 
     if args.skills_auto:
         run_skills_recommend(working_root=working_root, auto_install=True)
+        return
+
+    if args.install_lmstudio:
+        run_install_lmstudio(working_root=working_root, manual=False)
+        return
+
+    if args.install_lmstudio_manual:
+        run_install_lmstudio(working_root=working_root, manual=True)
+        return
+
+    if args.lmstudio_status:
+        run_lmstudio_status(working_root=working_root)
+        return
+
+    if args.reset_go:
+        run_reset_go(working_root=working_root)
         return
 
     missing = check_dependencies()
@@ -1250,6 +1275,10 @@ def main():
                 "Run diagnostics",
                 "Check for updates",
                 "MCP status",
+                "LM Studio status",
+                "Install LM Studio agents",
+                "Install LM Studio agents (manual)",
+                "Reset to Go plan",
                 "Recommend skills",
                 "Install globally",
                 "Uninstall globally",
@@ -1260,7 +1289,6 @@ def main():
                 "Project health",
                 "Continue last session",
                 "List pending tasks",
-                "Change plan",
                 "Exit",
             ]
         ).ask()
@@ -1296,6 +1324,14 @@ def main():
             run_uninstall()
         elif choice == "MCP status":
             run_mcp_status(working_root=working_root)
+        elif choice == "LM Studio status":
+            run_lmstudio_status(working_root=working_root)
+        elif choice == "Install LM Studio agents":
+            run_install_lmstudio(working_root=working_root, manual=False)
+        elif choice == "Install LM Studio agents (manual)":
+            run_install_lmstudio(working_root=working_root, manual=True)
+        elif choice == "Reset to Go plan":
+            run_reset_go(working_root=working_root)
         elif choice == "Recommend skills":
             run_skills_recommend(working_root=working_root)
         elif choice == "View sessions":

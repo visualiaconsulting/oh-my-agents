@@ -18,15 +18,21 @@ The available agents are:
 - **@frontend** — UI specialist — React, TypeScript, Tailwind. Model: opencode-go/qwen3.6-plus (SWE-Bench Verified 78.8%)
 - **@ml-specialist** — ML and data pipeline specialist. Model: opencode-go/minimax-m2.7 (MLE-Bench Lite 66.6%)
 
-### LM Studio Local Plan
+### Go Plan — Only Standard
 
-When LM Studio is running with API server enabled (localhost:1234), the system detects the "lmstudio" plan automatically. Available local agents:
+Go plan is the only standard plan. No automatic fallback or plan switching.
+If you run out of credits, reinstall oh-my-agents globally or in a specific project.
 
-- **@orquestador** — Coordinator. Model: lmstudio/qwen2.5-coder-3b-instruct
-- **@proptech_expert** — PropTech specialist. Model: lmstudio/nemotron-3-nano-4b
-- **@prompt_crafter** — Prompt engineer. Model: lmstudio/gemma-4-e4b
-- **@python_architect** — Python architect. Model: lmstudio/deepseek-r1-0528
-- **@qa_reviewer** — QA reviewer. Model: lmstudio/deepseek-r1-0528
+### LM Studio — Optional Local Plan
+
+LM Studio provides unlimited local inference with no API key needed.
+Models are auto-detected and roles assigned by size (largest = orchestrator).
+
+Commands:
+- `python main.py --install-lmstudio` — Auto-detect models, assign roles by size
+- `python main.py --install-lmstudio-manual` — Manually assign models to roles
+- `python main.py --lmstudio-status` — Show server status and current assignments
+- `python main.py --reset-go` — Restore Go plan from backup
 
 To use in another project, copy `.opencode/agents/` to the target project
 and modify this `CONTEXT.md` with the description of the actual project.

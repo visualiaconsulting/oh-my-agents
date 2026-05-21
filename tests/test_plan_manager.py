@@ -9,44 +9,53 @@ class TestPlanDetection:
         pm = PlanManager()
         assert pm.plan == "go"
 
-    def test_explicit_env_var(self, clean_env):
+    def test_explicit_env_var_ignored(self, clean_env):
+        """OPENCODE_PLAN is ignored — always returns go."""
         os.environ["OPENCODE_PLAN"] = "zen"
         pm = PlanManager()
-        assert pm.plan == "zen"
+        assert pm.plan == "go"
 
-    def test_env_var_case_insensitive(self, clean_env):
+    def test_env_var_case_insensitive_ignored(self, clean_env):
+        """Case insensitive env var is ignored — always returns go."""
         os.environ["OPENCODE_PLAN"] = "ENTERPRISE"
         pm = PlanManager()
-        assert pm.plan == "enterprise"
+        assert pm.plan == "go"
 
-    def test_anthropic_key_detects_api(self, clean_env):
+    def test_anthropic_key_ignored(self, clean_env):
+        """ANTHROPIC_API_KEY does not trigger api plan."""
         os.environ["ANTHROPIC_API_KEY"] = "sk-fake"
         pm = PlanManager()
-        assert pm.plan == "api"
+        assert pm.plan == "go"
 
-    def test_github_token_detects_zen(self, clean_env):
+    def test_github_token_ignored(self, clean_env):
+        """GITHUB_TOKEN does not trigger zen plan."""
         os.environ["GITHUB_TOKEN"] = "ghp_fake"
         pm = PlanManager()
-        assert pm.plan == "zen"
+        assert pm.plan == "go"
 
-    def test_copilot_token_detects_zen(self, clean_env):
+    def test_copilot_token_ignored(self, clean_env):
+        """COPILOT_TOKEN does not trigger zen plan."""
         os.environ["COPILOT_TOKEN"] = "fake-copilot-token"
         pm = PlanManager()
-        assert pm.plan == "zen"
+        assert pm.plan == "go"
 
-    def test_openrouter_key_detected(self, clean_env):
+    def test_openrouter_key_ignored(self, clean_env):
+        """OPENROUTER_API_KEY does not trigger openrouter plan."""
         os.environ["OPENROUTER_API_KEY"] = "sk-or-fake"
         pm = PlanManager()
-        assert pm.plan == "openrouter"
+        assert pm.plan == "go"
 
-    def test_ollama_host_detected(self, clean_env):
+    def test_ollama_host_ignored(self, clean_env):
+        """OLLAMA_HOST does not trigger ollama plan."""
         os.environ["OLLAMA_HOST"] = "http://localhost:11434"
         pm = PlanManager()
-        assert pm.plan == "ollama"
+        assert pm.plan == "go"
 
-    def test_env_var_takes_priority(self, clean_env):
-        os.environ["OPENCODE_PLAN"] = "go"
+    def test_always_returns_go(self, clean_env):
+        """_detect_plan always returns 'go' regardless of environment."""
+        os.environ["OPENCODE_PLAN"] = "zen"
         os.environ["ANTHROPIC_API_KEY"] = "sk-fake"
+        os.environ["OLLAMA_HOST"] = "http://localhost:11434"
         pm = PlanManager()
         assert pm.plan == "go"
 
@@ -90,15 +99,6 @@ class TestGetModel:
         pm = PlanManager()
         assert pm.get_model("nonexistent") == pm.get_model("fallback")
 
-    def test_zen_plan_models(self, clean_env):
-        pm = PlanManager(plan="zen")
-        assert pm.get_model("orchestrator") == "opencode/claude-sonnet-4.5"
-        assert pm.get_model("code-analyst") == "opencode/gpt-5.1-codex"
-
-    def test_copilot_plan_models(self, clean_env):
-        pm = PlanManager(plan="copilot")
-        assert pm.get_model("orchestrator") == "copilot/claude-sonnet-4"
-
 
 class TestGetAvailableModels:
     """Tests for get_available_models()."""
@@ -109,12 +109,6 @@ class TestGetAvailableModels:
         assert isinstance(models, list)
         assert len(models) > 0
         assert "opencode-go/deepseek-v4-pro" in models
-
-    def test_api_plan_falls_back_to_values(self, clean_env):
-        pm = PlanManager(plan="api")
-        models = pm.get_available_models()
-        assert isinstance(models, list)
-        assert len(models) >= 1
 
 
 class TestProjectRoot:
@@ -137,10 +131,6 @@ class TestPlanLimits:
         pm = PlanManager()
         assert pm.limits["daily"] == 5000
         assert pm.limits["weekly"] == 25000
-
-    def test_ollama_plan_has_unlimited(self, clean_env):
-        pm = PlanManager(plan="ollama")
-        assert pm.limits["daily"] == "unlimited"
 
 
 class TestValidateModels:
