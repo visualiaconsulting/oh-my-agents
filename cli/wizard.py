@@ -84,7 +84,7 @@ class SetupWizard:
         ]
 
         permissions_map = {
-            "orchestrator":     {"edit": "deny",  "bash": "allow", "read": "allow", "task": "allow"},
+            "orchestrator":     {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "allow"},
             "code-analyst":     {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
             "validator":        {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
             "bulk-processor":   {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
@@ -144,8 +144,31 @@ class SetupWizard:
 
     def save_all(self):
         self.agent_dir.mkdir(parents=True, exist_ok=True)
+        from utils import validate_agent_directory
+
+        # Check for existing conflicts before writing
+        existing_issues = validate_agent_directory(self.agent_dir)
+        existing_names = set()
+        for f in self.agent_dir.glob("*.md"):
+            if f.stem not in [a["name"] for a in self.agents]:
+                c = f.read_text(encoding="utf-8").strip()
+                if c.startswith("---"):
+                    parts = c.split("---")
+                    if len(parts) >= 3:
+                        import yaml
+                        try:
+                            meta = yaml.safe_load(parts[1])
+                            if isinstance(meta, dict) and meta.get("name"):
+                                existing_names.add(meta["name"])
+                        except yaml.YAMLError:
+                            pass
+
         for agent in self.agents:
-            file_path = self.agent_dir / f"{agent['name']}.md"
+            agent_name = agent["name"]
+            if agent_name in existing_names:
+                console.print(f"  [yellow]⚠[/yellow] Agent \"{agent_name}\" already exists — overwriting")
+
+            file_path = self.agent_dir / f"{agent_name}.md"
             content = self._format_md(agent)
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)

@@ -1,7 +1,7 @@
 ---
 name: prompt_crafter
 description: Expert prompt engineer
-mode: secondary
+mode: subagent
 model: lmstudio/gemma-4-e4b
 temperature: 0.4
 permission:

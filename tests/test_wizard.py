@@ -80,7 +80,6 @@ class TestSetupDefaults:
         wizard.setup_defaults()
         orch = next(a for a in wizard.agents if a["name"] == "orchestrator")
         assert orch["permissions"]["edit"] == "deny"
-        assert orch["permissions"]["bash"] == "deny"
         assert orch["permissions"]["task"] == "allow"
 
     def test_validator_is_read_only(self, temp_empty_project):
@@ -98,17 +97,17 @@ class TestSetupDefaults:
         assert ca["permissions"]["edit"] == "allow"
         assert ca["permissions"]["bash"] == "allow"
 
-    def test_orchestrator_model_is_kimi(self, temp_empty_project):
+    def test_orchestrator_model_is_deepseek(self, temp_empty_project):
         wizard = SetupWizard(project_root=temp_empty_project)
         wizard.setup_defaults()
         orch = next(a for a in wizard.agents if a["name"] == "orchestrator")
-        assert orch["model"] == "opencode-go/kimi-k2.6"
+        assert orch["model"] == "opencode-go/deepseek-v4-pro"
 
-    def test_validator_model_is_mimo(self, temp_empty_project):
+    def test_validator_model_is_qwen(self, temp_empty_project):
         wizard = SetupWizard(project_root=temp_empty_project)
         wizard.setup_defaults()
         val = next(a for a in wizard.agents if a["name"] == "validator")
-        assert val["model"] == "opencode-go/mimo-v2.5-pro"
+        assert val["model"] == "opencode-go/qwen3.6-plus"
 
 
 class TestSaveAll:

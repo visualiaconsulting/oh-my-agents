@@ -1,7 +1,7 @@
 ---
 name: python_architect
 description: Python software architect
-mode: secondary
+mode: subagent
 model: lmstudio/deepseek-r1-0528
 temperature: 0.2
 permission:

@@ -28,6 +28,76 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: Validate agent directory integrity
+      run: python -c "
+import sys, yaml, pathlib, json
+
+def levenshtein(a, b):
+    a, b = a.lower(), b.lower()
+    if len(a) < len(b):
+        a, b = b, a
+    if not b:
+        return len(a)
+    prev = range(len(b) + 1)
+    for i, ca in enumerate(a):
+        curr = [i + 1]
+        for j, cb in enumerate(b):
+            cost = 0 if ca == cb else 1
+            curr.append(min(curr[j] + 1, prev[j + 1] + 1, prev[j] + cost))
+        prev = curr
+    return prev[-1]
+
+d = pathlib.Path('.opencode/agents')
+errors = 0
+
+if d.exists():
+    files = sorted(d.glob('*.md'))
+    parsed = []
+    for f in files:
+        c = f.read_text(encoding='utf-8').strip()
+        if not c.startswith('---'):
+            print(f'WARNING: {f.name} — no YAML front matter')
+            continue
+        parts = c.split('---')
+        if len(parts) < 3:
+            print(f'WARNING: {f.name} — malformed front matter')
+            continue
+        try:
+            meta = yaml.safe_load(parts[1])
+        except yaml.YAMLError:
+            print(f'WARNING: {f.name} — invalid YAML front matter')
+            continue
+        if not isinstance(meta, dict):
+            print(f'WARNING: {f.name} — empty front matter')
+            continue
+        parsed.append({'stem': f.stem, 'file': f.name, 'name': meta.get('name'), 'mode': meta.get('mode')})
+
+    names = {}
+    for p in parsed:
+        if p['name'] and p['name'] in names:
+            print(f'ERROR: Duplicate name \"{p[\"name\"]}\" in {names[p[\"name\"]]} and {p[\"file\"]}')
+            errors += 1
+        elif p['name']:
+            names[p['name']] = p['file']
+
+    primaries = [p for p in parsed if p['mode'] == 'primary']
+    if len(primaries) > 1:
+        print(f'ERROR: Multiple primary agents: {\", \".join(p[\"file\"] for p in primaries)}')
+        errors += 1
+
+    stems = [p['stem'] for p in parsed]
+    for i in range(len(stems)):
+        for j in range(i + 1, len(stems)):
+            dist = levenshtein(stems[i], stems[j])
+            if 0 < dist < 3:
+                print(f'WARNING: Similar filenames \"{stems[i]}.md\" and \"{stems[j]}.md\" (distance={dist})')
+else:
+    print('No .opencode/agents directory found — skipping validation')
+
+if errors:
+    sys.exit(1)
+"
+
     - name: Run tests
       run: pytest tests/ -v
 

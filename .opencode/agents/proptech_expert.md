@@ -1,7 +1,7 @@
 ---
 name: proptech_expert
 description: PropTech domain expert for real estate tech
-mode: secondary
+mode: subagent
 model: lmstudio/nemotron-3-nano-4b
 temperature: 0.3
 permission:

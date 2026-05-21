@@ -346,3 +346,154 @@ def get_auto_session_flag_path(project_root: Optional[Path] = None) -> Path:
 def is_auto_session_enabled(project_root: Optional[Path] = None) -> bool:
     """Check if the auto-session flag file exists for this project."""
     return get_auto_session_flag_path(project_root).exists()
+
+
+# ---------------------------------------------------------------------------
+# Agent directory validation (prevents duplicate/shadow agent files)
+# ---------------------------------------------------------------------------
+
+
+def _levenshtein(a: str, b: str) -> int:
+    """Compute Levenshtein distance between two strings (case-insensitive)."""
+    a, b = a.lower(), b.lower()
+    if len(a) < len(b):
+        a, b = b, a
+    if not b:
+        return len(a)
+    prev = range(len(b) + 1)
+    for i, ca in enumerate(a):
+        curr = [i + 1]
+        for j, cb in enumerate(b):
+            cost = 0 if ca == cb else 1
+            curr.append(min(curr[j] + 1, prev[j + 1] + 1, prev[j] + cost))
+        prev = curr
+    return prev[-1]
+
+
+def validate_agent_directory(agent_dir: Path) -> list[dict]:
+    """Validate an agent .md directory for integrity issues.
+
+    Checks:
+      1. Multiple files with ``mode: primary``
+      2. Files without valid YAML front matter
+      3. Duplicate ``name:`` values across files
+      4. Files with suspiciously similar names (Levenshtein distance < 3)
+
+    Returns a list of dicts with keys:
+      - ``severity``: ``"error"`` or ``"warning"``
+      - ``message``: human-readable description
+      - ``files``: list of filenames involved (optional)
+    """
+    issues: list[dict] = []
+
+    if not agent_dir.exists():
+        return issues
+
+    md_files = sorted(agent_dir.glob("*.md"))
+    if not md_files:
+        return issues
+
+    parsed = []
+
+    for f in md_files:
+        try:
+            content = f.read_text(encoding="utf-8").strip()
+        except OSError:
+            continue
+
+        if not content.startswith("---"):
+            parsed.append({"stem": f.stem, "file": f.name, "no_frontmatter": True})
+            continue
+
+        parts = content.split("---")
+        if len(parts) < 3:
+            parsed.append({"stem": f.stem, "file": f.name, "no_frontmatter": True})
+            continue
+
+        import yaml
+
+        try:
+            meta = yaml.safe_load(parts[1])
+        except yaml.YAMLError:
+            parsed.append({"stem": f.stem, "file": f.name, "no_frontmatter": True})
+            continue
+
+        if not isinstance(meta, dict):
+            parsed.append({"stem": f.stem, "file": f.name, "no_frontmatter": True})
+            continue
+
+        parsed.append(
+            {
+                "stem": f.stem,
+                "file": f.name,
+                "name": meta.get("name"),
+                "mode": meta.get("mode"),
+                "no_frontmatter": False,
+            }
+        )
+
+    # Check 1: duplicate name values
+    names_seen = {}
+    for p in parsed:
+        if p["no_frontmatter"]:
+            continue
+        n = p["name"]
+        if n is None:
+            continue
+        if n in names_seen:
+            issues.append(
+                {
+                    "severity": "error",
+                    "message": f"Duplicate agent name \"{n}\" in files: {names_seen[n]}, {p['file']}",
+                    "files": [names_seen[n], p["file"]],
+                }
+            )
+        else:
+            names_seen[n] = p["file"]
+
+    # Check 2: multiple primary agents
+    primaries = [p for p in parsed if not p["no_frontmatter"] and p["mode"] == "primary"]
+    if len(primaries) > 1:
+        primary_files = [p["file"] for p in primaries]
+        issues.append(
+            {
+                "severity": "error",
+                "message": f"Multiple agents with mode: primary — {', '.join(primary_files)}. Only one coordinator is allowed.",
+                "files": primary_files,
+            }
+        )
+
+    # Check 3: files without valid front matter
+    no_fm = [p for p in parsed if p["no_frontmatter"]]
+    if no_fm:
+        no_fm_files = [p["file"] for p in no_fm]
+        issues.append(
+            {
+                "severity": "warning",
+                "message": f"Files without valid YAML front matter: {', '.join(no_fm_files)}",
+                "files": no_fm_files,
+            }
+        )
+
+    # Check 4: suspiciously similar filenames (Levenshtein distance < 3)
+    stems = [p["stem"] for p in parsed]
+    for i in range(len(stems)):
+        for j in range(i + 1, len(stems)):
+            dist = _levenshtein(stems[i], stems[j])
+            if 0 < dist < 3 and dist != len(stems[j]):
+                # Only flag if not already caught as duplicate name
+                already_caught = any(
+                    stems[i] in str(issue.get("files", []))
+                    and stems[j] in str(issue.get("files", []))
+                    for issue in issues
+                )
+                if not already_caught:
+                    issues.append(
+                        {
+                            "severity": "warning",
+                            "message": f"Filennames \"{stems[i]}.md\" and \"{stems[j]}.md\" are very similar (distance={dist}) — possible duplicate/shadow file",
+                            "files": [f"{stems[i]}.md", f"{stems[j]}.md"],
+                        }
+                    )
+
+    return issues

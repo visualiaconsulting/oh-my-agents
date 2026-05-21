@@ -74,6 +74,7 @@ def run_doctor(working_root=None):
         console.print(f"    Install from: [bold]https://opencode.ai[/bold]")
 
     from plan_manager import PlanManager
+    from utils import validate_agent_directory
     agent_dir = find_agent_source(working_root)
     if agent_dir:
         agent_count = len(list(agent_dir.glob("*.md")))
@@ -88,6 +89,14 @@ def run_doctor(working_root=None):
             console.print(f"    [dim]Run 'python main.py --setup' to reconfigure.[/dim]")
         elif valid:
             console.print(f"  [green]OK[/green] All agent model IDs valid ({len(valid)} models)")
+
+        issues = validate_agent_directory(agent_dir)
+        if issues:
+            console.print()
+            for issue in issues:
+                icon = "[red]X[/red]" if issue["severity"] == "error" else "[yellow]⚠[/yellow]"
+                console.print(f"  {icon} {issue['message']}")
+            console.print()
     else:
         console.print(f"  [yellow]⚠[/yellow] No agent configuration found")
 
@@ -113,12 +122,20 @@ def run_doctor(working_root=None):
 def load_agents():
     """Load agent definitions from the best available source."""
     import yaml
-    from utils import find_agent_source
+    from utils import find_agent_source, validate_agent_directory
 
     agent_dir = find_agent_source()
     agents = []
     if not agent_dir:
         return agents
+
+    issues = validate_agent_directory(agent_dir)
+    errors = [i for i in issues if i["severity"] == "error"]
+    if errors:
+        import sys
+        print("[WARNING] Agent directory validation errors:", file=sys.stderr)
+        for e in errors:
+            print(f"  {e['message']}", file=sys.stderr)
 
     for md_file in agent_dir.glob("*.md"):
         try:

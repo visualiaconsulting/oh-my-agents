@@ -23,7 +23,7 @@ class TestLoadAgents:
         with patch("utils.find_agent_source", return_value=agent_dir):
             agents = load_agents()
         orch = next(a for a in agents if a["name"] == "@orchestrator")
-        assert orch["model"] == "opencode-go/kimi-k2.6"
+        assert orch["model"] == "opencode-go/deepseek-v4-pro"
         assert orch["role"] == "Primary"
 
     def test_no_agents_dir_returns_empty(self, temp_empty_project):

@@ -1,7 +1,7 @@
 ---
 name: qa_reviewer
 description: QA code reviewer
-mode: secondary
+mode: subagent
 model: lmstudio/deepseek-r1-0528
 temperature: 0.1
 permission:

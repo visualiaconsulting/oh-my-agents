@@ -10,6 +10,9 @@ __pycache__/
 dist/
 build/
 
+# Runtime flags
+.opencode/.auto_session_enabled
+
 # Runtime MCP config (may contain tokens)
 .opencode/mcp.json
 
