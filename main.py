@@ -85,7 +85,7 @@ def run_doctor(working_root=None):
         if invalid:
             console.print(f"  [red]X[/red] Invalid model IDs detected:")
             for name, model in invalid:
-                console.print(f"      @{name} → [red]{model}[/red] (not in registry)")
+                console.print(f"      @{name} -> [red]{model}[/red] (not in registry)")
             console.print(f"    [dim]Run 'python main.py --setup' to reconfigure.[/dim]")
         elif valid:
             console.print(f"  [green]OK[/green] All agent model IDs valid ({len(valid)} models)")
@@ -737,7 +737,7 @@ def run_install_lmstudio(working_root=None, manual=False):
     print_success(f"Installed {result['count']} agent(s) for LM Studio plan")
     console.print("\n[bold]Role assignments:[/bold]")
     for a in result["installed"]:
-        console.print(f"  @{a['role']:<18} → {a['display']} ({a['params']})")
+        console.print(f"  @{a['role']:<18} -> {a['display']} ({a['params']})")
 
     console.print(f"\n[dim]Go agents backed up to: {result['backup_dir']}[/dim]")
     console.print("[dim]Run 'python main.py --reset-go' to restore Go plan.[/dim]")
@@ -787,7 +787,7 @@ def run_lmstudio_status(working_root=None):
                                 meta = yaml.safe_load(parts[1])
                                 name = meta.get("name", md_file.stem)
                                 model = meta.get("model", "")
-                                console.print(f"    @{name:<18} → {model}")
+                                console.print(f"    @{name:<18} -> {model}")
                     except Exception:
                         pass
     else:

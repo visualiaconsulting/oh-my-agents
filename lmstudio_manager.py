@@ -283,7 +283,72 @@ def _restore_agents_from_backup(target_dir: Path, backup_dir: Path) -> int:
     return restored
 
 
-def install_lmstudio_agents(project_root: Path, models: List[Dict], manual: bool = False) -> Dict:
+def safe_assign_roles(models: List[Dict]) -> List[Tuple[str, Dict]]:
+    """
+    Assign roles to models, avoiding known-broken models for key roles.
+    Currently avoids Nemotron models which have a broken Jinja2 prompt template
+    (error: \"Cannot apply filter 'string' to type: NullValue\").
+
+    Strategy:
+    1. Filter out embedding models (params <= 0) and broken models
+    2. Rank usable LLMs by size with code model boost for code-analyst
+    3. Assign to priority roles in order, duplicating models if needed
+
+    Priority order: orchestrator > code-analyst > validator > bulk-processor > subagent
+    """
+    broken_keywords = ["nemotron"]
+
+    # Filter to usable models only (non-embedding, non-broken)
+    usable = []
+    broken = []
+    for m in models:
+        mid = m["id"].lower()
+        if m["params"] <= 0:
+            continue  # skip embeddings
+        if any(kw in mid for kw in broken_keywords):
+            broken.append(m)
+        else:
+            usable.append(m)
+
+    if not usable:
+        return auto_assign_roles(models)  # fallback
+
+    # Rank usable models by size with code model boost
+    scorer = []
+    for m in usable:
+        score = m["params"]
+        if m["is_code"]:
+            score += 0.5
+        scorer.append((score, m))
+    scorer.sort(key=lambda x: x[0], reverse=True)
+    ranked = [m for _, m in scorer]
+
+    # Assign in priority order
+    priority_roles = [r for r in ROLE_NAMES if r != "subagent"] + ["subagent"]
+
+    assignments = []
+    used_models = {}  # role -> model
+
+    for i, role in enumerate(priority_roles):
+        if i < len(ranked):
+            model = ranked[i]
+        else:
+            model = ranked[-1]  # duplicate the smallest usable model
+        assignments.append((role, model))
+
+    # Assign broken models (like Nemotron) to subagent if possible
+    if broken:
+        for i in range(len(assignments) - 1, -1, -1):
+            role, _ = assignments[i]
+            if role in ("subagent", "bulk-processor"):
+                assignments[i] = (role, broken[0])
+                break
+
+    return assignments
+
+
+def install_lmstudio_agents(project_root: Path, models: List[Dict], manual: bool = False,
+                            assignments: Optional[List[Tuple[str, Dict]]] = None) -> Dict:
     """
     Install LM Studio agents to .opencode/agents/ and ~/.opencode/agents/.
     Backs up existing Go agents in both locations, creates new LM Studio agents.
@@ -291,10 +356,12 @@ def install_lmstudio_agents(project_root: Path, models: List[Dict], manual: bool
     Returns dict with status info.
     """
     # Determine assignments
-    if manual:
+    if assignments is not None:
+        pass  # use the provided assignments
+    elif manual:
         assignments = _manual_assign(models)
     else:
-        assignments = auto_assign_roles(models)
+        assignments = safe_assign_roles(models)
 
     if not assignments:
         return {"installed": [], "count": 0, "backup_dir": ""}

@@ -8,6 +8,7 @@ import pytest
 from lmstudio_manager import (
     _parse_params,
     auto_assign_roles,
+    safe_assign_roles,
     ensure_global_lmstudio_config,
     format_agent_md,
     GLOBAL_OPENCODE_CONFIG,
@@ -97,6 +98,74 @@ class TestAutoAssignRoles:
         # Code-analyst should be the code model (6B + 0.5 boost = 6.5 > 5.0)
         assert result[1][0] == "code-analyst"
         assert result[1][1]["id"] == "coder-6b"
+
+
+class TestSafeAssignRoles:
+    def _make_model(self, name, params, is_code=False):
+        return {
+            "id": name,
+            "display_name": name,
+            "params": params,
+            "params_string": f"{int(params)}B" if params > 0 else "",
+            "max_context_length": 32768,
+            "is_code": is_code,
+            "is_loaded": True,
+            "publisher": "test",
+            "arch": "llama",
+            "quantization": "Q4",
+            "state": "loaded",
+        }
+
+    def test_avoids_nemotron_for_orchestrator(self):
+        models = [
+            self._make_model("nvidia/nemotron-3-nano-4b", 4.0),
+            self._make_model("mistralai/ministral-3-3b", 3.0),
+        ]
+        result = safe_assign_roles(models)
+        assert result[0][0] == "orchestrator"
+        assert "nemotron" not in result[0][1]["id"]
+        assert result[0][1]["id"] == "mistralai/ministral-3-3b"
+
+    def test_skips_embedding_models(self):
+        models = [
+            self._make_model("text-embedding-nomic", 0.0),
+            self._make_model("nemotron-4b", 4.0),
+            self._make_model("ministral-3b", 3.0),
+        ]
+        result = safe_assign_roles(models)
+        assigned_ids = [m["id"] for _, m in result]
+        assert "text-embedding-nomic" not in assigned_ids
+
+    def test_passes_through_if_no_nemotron(self):
+        models = [
+            self._make_model("ministral-3b", 3.0),
+            self._make_model("gemma-2b", 2.0),
+        ]
+        result = safe_assign_roles(models)
+        assert result[0][1]["id"] == "ministral-3b"
+
+    def test_nemotron_goes_to_subagent(self):
+        models = [
+            self._make_model("nemotron-4b", 4.0),
+            self._make_model("ministral-3b", 3.0),
+            self._make_model("gemma-2b", 2.0),
+        ]
+        result = safe_assign_roles(models)
+        nemotron_role = None
+        for role, model in result:
+            if "nemotron" in model["id"]:
+                nemotron_role = role
+                break
+        assert nemotron_role == "subagent"
+
+    def test_empty_models(self):
+        assert safe_assign_roles([]) == []
+
+    def test_only_broken_models_falls_back(self):
+        models = [self._make_model("nemotron-4b", 4.0)]
+        result = safe_assign_roles(models)
+        assert len(result) == 1
+        assert result[0][1]["id"] == "nemotron-4b"
 
 
 class TestFormatAgentMd:
