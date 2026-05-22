@@ -114,15 +114,67 @@ Manages skills from the skills.sh ecosystem:
 
 Manages local model inference via LM Studio:
 - **`check_lmstudio_running()`** — Checks if LM Studio server is accessible at `http://localhost:1234/v1/models`
-- **`list_models()`** — Fetches available models from the OpenAI-compatible endpoint, sorts by parameter size
-- **`auto_assign_roles()`** — Assigns largest model to orchestrator, 2nd to code-analyst, etc.; code models get a boost for code-analyst
-- **`ensure_global_lmstudio_config()`** — Writes/updates the LM Studio provider in `~/.config/opencode/opencode.jsonc` with baseURL, npm package, and assigned models
+- **`list_models()`** — Fetches available models from the OpenAI-compatible endpoint, sorts by parameter size, marks embedding models and code models
+- **`auto_assign_roles()`** — Assigns largest model to orchestrator, 2nd to code-analyst, etc.; code models get a +0.5 boost for code-analyst
+- **`safe_assign_roles()`** — Like `auto_assign_roles()` but detects known-broken models (e.g., Nemotron with broken Jinja2 template) and reassigns them to subagent, keeping stable models for orchestrator
+- **`ensure_global_lmstudio_config()`** — Writes/updates the LM Studio provider in `~/.config/opencode/opencode.jsonc` with baseURL, npm package, assigned models, and per-model limits (context/output)
 - **`format_agent_md()`** — Generates agent `.md` files with model ID `lmstudio/<model-name>`
-- **`install_lmstudio_agents()`** — Backs up Go agents, creates LM Studio agents, writes `plan.json`, calls `ensure_global_lmstudio_config()`
-- **`reset_to_go()`** — Restores Go agents from backup, removes `plan.json`
+- **`install_lmstudio_agents()`** — Backs up Go agents (both project and global), creates LM Studio agents in both locations, writes `plan.json`, calls `ensure_global_lmstudio_config()`
+- **`_install_agents_to_dir()`** — Internal helper that backs up existing agents and writes new ones to a target directory (used for both project and global install)
+- **`_restore_agents_from_backup()`** — Internal helper that restores agents from a backup directory
+- **`_rmtree()`** — Cross-platform directory removal with Windows permission error handling
+- **`reset_to_go()`** — Restores Go agents from backup in both project and global dirs, removes `plan.json`
 - **`get_status()`** — Returns server status, model count, and model list
 
 **Required:** LM Studio 0.4+ with API token authentication disabled in the Developer → Server panel.
+
+### Hardware Tiers for LM Studio
+
+oh-my-agents is designed to work on modest hardware. LM Studio can run models even on integrated GPUs, making local AI accessible without expensive hardware.
+
+| Tier | Hardware | Max Model Size | Examples | Roles |
+|------|----------|---------------|----------|-------|
+| **Integrated** | Intel UHD/Iris, AMD Radeon integrated, no GPU | 1.5B - 3B Q4 | Qwen 2.5 Coder 1.5B, Ministral 3B, Phi-3 Mini 3.8B | Code review, simple tasks, chat |
+| **Entry GPU** | GTX 1650/1660, RTX 2050/3050 (4-6GB) | 3B - 7B Q4 | Ministral 3B, Gemma 4 E2B, Qwen 2.5 7B | Orchestrator, validator, full agent suite |
+| **Mid GPU** | RTX 2060/3060/4060 (6-12GB) | 7B - 14B Q4 | Qwen 2.5 7B, Mistral 7B, Llama 3.1 8B, DeepSeek Coder V2 Lite | Full 8-agent system, code generation |
+| **High GPU** | RTX 3090/4090, A-series (24GB+) | 30B - 70B Q4 | Llama 3.3 70B, Qwen 2.5 72B, DeepSeek V3 | Heavy orchestration, complex analysis |
+
+#### Recommended Models by Tier
+
+**Integrated GPU / CPU-only (1.5B - 3B):**
+| Model | Size | Why |
+|-------|------|-----|
+| Qwen 2.5 Coder 1.5B | 1.5B Q8 (1.5 GB) | Excellent code generation for its size |
+| Ministral 3B Instruct | 3B Q4 (2.0 GB) | Best general-purpose for low-end HW |
+| Phi-3 Mini 4K | 3.8B Q4 (2.5 GB) | Stable template, efficient |
+| Gemma 4 E2B | 2.6B Q4 (3.2 GB) | Multilingual, good reasoning |
+
+**Entry to Mid GPU — RTX 2060 / 3060 (6GB VRAM) (7B - 9B):**
+| Model | Size | Why |
+|-------|------|-----|
+| Qwen 2.5 7B Instruct | 7B Q4 (4.5 GB) | Best quality/speed ratio on 6GB |
+| Mistral 7B v0.3 | 7B Q4 (4.5 GB) | Reference model, very stable |
+| Llama 3.1 8B Instruct | 8B Q4 (5.0 GB) | Strong general-purpose |
+| DeepSeek Coder V2 Lite | 4B Q4 (3.0 GB) | Specialized for code |
+
+#### Role Assignment Strategy
+
+The `safe_assign_roles()` function optimizes model placement for limited hardware:
+
+1. **Filters out** embedding models (no chat capability) and known-broken models
+2. **Ranks by parameter size** with a +0.5 boost for code models (prefers them for code-analyst)
+3. **Assigns in priority order**: orchestrator > code-analyst > validator > bulk-processor, etc.
+4. **Duplicates models** if more roles than available LLMs (e.g., 3 LLMs for 8 roles → smaller model reused)
+5. **Broken models** (e.g., Nemotron with bad Jinja2 template) go to subagent (least critical role)
+
+Example with 4 LLMs + 1 embedding on a modest machine:
+```
+orchestrator  → Ministral 3.3B      (biggest stable model)
+code-analyst  → Gemma 4 E2B         (2nd biggest, good reasoning)
+validator     → Qwen Coder 1.5B     (fast, lightweight validation)
+subagent      → Nemotron 4B         (broken template, least critical)
+bulk-processor → Qwen Coder 1.5B   (reused — light async tasks)
+```
 
 ### `cli/wizard.py` — Setup Wizard
 
@@ -142,7 +194,52 @@ The **Qwen3.6 Plus** and **Qwen3.5 Plus** models were previously removed from th
 
 ---
 
+## ⚠️ Known Issue: Nemotron Jinja2 Template (v1.7.2)
+
+The **NVIDIA Nemotron 3 Nano 4B** GGUF model has a broken Jinja2 prompt template that causes the error:
+
+> `Cannot apply filter "string" to type: NullValue`
+
+This happens when OpenCode sends a chat completion request — the template applies a `| string` filter to a null message field, which Jinja2 cannot process.
+
+**Solution:** `safe_assign_roles()` in `lmstudio_manager.py` detects Nemotron by its model ID and reassigns it to the `subagent` role (least critical). The orchestrator gets the next largest stable model (e.g., Ministral 3.3B). If you still want to use Nemotron as orchestrator, you can fix the template manually in LM Studio:
+
+1. Open LM Studio → My Models
+2. Select Nemotron 3 Nano 4B → Settings
+3. Scroll to "Prompt Template" and paste a valid template (e.g., the one from lmstudio-community)
+4. Save and reload
+
+Alternatively, download a model with a known-good template from the [Recommended Models by Tier](#recommended-models-by-tier) table above.
+
+---
+
 ## 📝 Changelog
+
+### v1.7.2 — Global Agent Install, Nemotron Template Fix & Hardware Tiers (May 2026)
+
+**Bug fix — `--install-lmstudio` only wrote project agents:**
+- **Problem:** `install_lmstudio_agents()` only wrote LM Studio agents to the project's `.opencode/agents/`, but `opencode --agent orchestrator` resolves agents from `~/.opencode/agents/` (global directory). The orchestrator still loaded the Go plan model.
+- **Solution:** Added `_install_agents_to_dir()` and `_restore_agents_from_backup()` helpers. `install_lmstudio_agents()` now writes agents to both project `.opencode/agents/` AND global `~/.opencode/agents/` (with backup of existing Go agents). `reset_to_go()` restores both locations.
+
+**Bug fix — Nemotron broken Jinja2 template:**
+- **Problem:** The Nemotron 3 Nano 4B model has a broken Jinja2 prompt template (`Cannot apply filter "string" to type: NullValue`), crashing every request sent to it.
+- **Solution:** Added `safe_assign_roles()` that detects known-broken models by ID pattern and reassigns them to `subagent` (least critical role). Stable models are assigned to orchestrator first.
+
+**New feature — Hardware tier documentation:**
+- Added "Hardware Tiers for LM Studio" section with 4 tiers (Integrated, Entry GPU, Mid GPU, High GPU)
+- Added "Recommended Models by Tier" tables with specific model recommendations per hardware level
+- Added "Role Assignment Strategy" section explaining how `safe_assign_roles()` optimizes for limited hardware
+- Documented model duplication when fewer LLMs than roles
+
+**New files:**
+- None
+
+**Files modified:**
+- `lmstudio_manager.py` — Added `safe_assign_roles()`, `_install_agents_to_dir()`, `_restore_agents_from_backup()`, `_rmtree()`, model limits in `ensure_global_lmstudio_config()`, `assignments` parameter in `install_lmstudio_agents()`
+- `main.py` — Fixed Unicode arrow (`→` → `->`) for Windows cp1252 compatibility
+- `tests/test_lmstudio.py` — 6 new tests for `safe_assign_roles()` (26 total)
+
+**Tests:** 168 passing (26 LM Studio tests, 19 pre-existing failures on LM Studio-installed projects)
 
 ### v1.7.1 — LM Studio Auth Fix & Global Config (May 2026)
 
@@ -521,6 +618,8 @@ Translated all documentation, comments, and user-facing strings from Spanish to 
 | 14 | `setup.sh` had no `cd` to script dir, `--install-global` flag checked after `main.py` ran | `setup.sh` | Added `cd "$SCRIPT_DIR"`, moved flag check before `main.py` |
 | 15 | Sessions/skills/logs saved to SYSTEM_ROOT instead of WORKING_ROOT — broke continuity across projects | `main.py`, `session_manager.py`, `skill_registry.py`, `utils.py` (new) | Introduced `SYSTEM_ROOT` vs `WORKING_ROOT` separation. `find_agent_source()` for 3-level agent discovery. All runtime data now bound to active project. |
 | 16 | LM Studio `invalid_api_key` — auth token required by LM Studio 0.4.12+, v0 API endpoints removed | `lmstudio_manager.py` | Switched to OpenAI-compatible `/v1/models` endpoint. Documented disabling "Require API Token" in LM Studio Developer panel. |
+| 17 | LM Studio agents only installed to project dir — `opencode --agent orchestrator` still used Go plan | `lmstudio_manager.py` | Added `_install_agents_to_dir()` to write agents to both project `.opencode/agents/` and global `~/.opencode/agents/`. `reset_to_go()` restores both. |
+| 18 | Nemotron 3 Nano 4B Jinja2 template crashes every request (`Cannot apply filter "string" to type: NullValue`) | `lmstudio_manager.py` | Added `safe_assign_roles()` that detects broken models and reassigns them to `subagent`, keeping stable models for orchestrator. |
 
 ---
 
@@ -559,7 +658,7 @@ Translated all documentation, comments, and user-facing strings from Spanish to 
 │   ├── test_wizard.py           # 22 tests: defaults, permissions, save
 │   ├── test_main.py             # 15 tests: agents, deps, global install, uninstall
 │   ├── test_update_manager.py   # 10 tests: version, updates, merge
-│   ├── test_lmstudio.py         # 20 tests: LM Studio detection, role assignment, global config
+│   ├── test_lmstudio.py         # 26 tests: LM Studio detection, role assignment, global config, safe_assign
 │   ├── test_mcp.py              # 10 tests: MCP config, client, recommender
 │   └── test_project_db.py       # 20+ tests: project database, continuity
 ├── .github/
@@ -607,7 +706,7 @@ print(f"Available models: {pm.get_available_models()}")
 
 ## 🚀 Suggested Next Steps
 
-1. **Run tests locally:** `pytest tests/ -v` (162 tests, all current features covered)
+1. **Run tests locally:** `pytest tests/ -v` (168 tests, all current features covered)
 2. **Connectivity Validation:** Run `python main.py` to verify that the PlanManager correctly detects the environment
 3. **Delegation Tests:** Use `opencode --agent orchestrator` with a complex task to validate interaction between agents (works from any folder after global install)
 4. **Model Health Check:** Run `python main.py --doctor` to verify all agent model IDs are valid
@@ -618,8 +717,10 @@ print(f"Available models: {pm.get_available_models()}")
 9. **Test project DB:** Run `python main.py --project-status` to verify project continuity features
 10. **Enable auto-session:** Run `python main.py --auto-enable` to enable automatic session saving
 11. **View continuity:** Run `python main.py --continue` to see re-entry context
-12. **LM Studio test:** Run `python main.py --lmstudio-status` to verify local model detection
-13. **LM Studio install:** Run `python main.py --install-lmstudio` to switch to local models
+12. **Enable auto-session:** Run `python main.py --auto-enable` to enable automatic session saving
+13. **LM Studio test:** Run `python main.py --lmstudio-status` to verify local model detection
+14. **LM Studio install:** Run `python main.py --install-lmstudio` to switch to local models
+15. **LM Studio hardware check:** Run `python main.py --lmstudio-status` to see which tier your setup fits
 
 ---
 

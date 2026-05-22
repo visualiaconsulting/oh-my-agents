@@ -6,7 +6,7 @@
 
 [![OpenCode](https://img.shields.io/badge/Built_for-OpenCode_Go-00D4AA?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyTDIgN2wxMCA1IDEwLTVNMiAxN2wxMCA1IDEwLTVNMiAxMmwxMCA1IDEwLTUiLz48L3N2Zz4=)](https://opencode.ai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.7.1-blue?style=for-the-badge)](https://github.com/visualiaconsulting/oh-my-agents/releases/tag/v1.7.1)
+[![Version](https://img.shields.io/badge/version-1.7.2-blue?style=for-the-badge)](https://github.com/visualiaconsulting/oh-my-agents/releases/tag/v1.7.2)
 [![GitHub Stars](https://img.shields.io/github/stars/visualiaconsulting/oh-my-agents?style=for-the-badge&logo=github)](https://github.com/visualiaconsulting/oh-my-agents/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/visualiaconsulting/oh-my-agents?style=for-the-badge&logo=github)](https://github.com/visualiaconsulting/oh-my-agents/issues)
 
@@ -30,7 +30,7 @@
 | 📝 **Session Continuity** | Never lose context between sessions. Automatic bitacora saves errors, changes, and pending tasks |
 | 🧩 **Skills Ecosystem** | Extend agent capabilities with reusable skills from [skills.sh](https://skills.sh) |
 | 🔄 **Go-Only Standard** | Plan Go es el único plan por defecto. Sin fallback automático — reinstala si te quedas sin créditos |
-| 🖥️ **LM Studio Integration** | Detecta modelos locales, asigna roles por tamaño, escribe config global `~/.config/opencode/`, uso ilimitado sin API key (v1.7.1) |
+| 🖥️ **LM Studio Integration** | Detecta modelos locales, asigna roles por tamaño, evita modelos con templates rotos, escribe config global `~/.config/opencode/`, uso ilimitado sin API key (v1.7.2) |
 | 🚀 **Zero Config Start** | Clone, run setup, start coding. The wizard handles the rest |
 | 📦 **Portable** | Copy agents to any project — they adapt via `context.md` |
 | 🗄️ **Project Database** | SQLite DB per project stores sessions, file changes, errors, commands (v1.6.0) |
@@ -518,25 +518,36 @@ print(f"Orchestrator model: {pm.get_model('orchestrator')}")
 
 > **No auto-detection:** LM Studio, Zen, API, OpenRouter, Copilot, and Ollama are no longer auto-detected. Go is the only standard plan. If you run out of credits, reinstall oh-my-agents globally or per-project.
 
-### LM Studio Integration (v1.7.0)
+### LM Studio Integration (v1.7.2)
 
-LM Studio provides unlimited local inference with no API key needed. Models are auto-detected via the REST API and roles are assigned by size (largest = orchestrator).
+LM Studio provides unlimited local inference with no API key needed. Models are auto-detected via the REST API and assigned to roles using `safe_assign_roles()`, which avoids models with broken templates.
 
 | Command | Description |
 |---------|-------------|
-| `python main.py --install-lmstudio` | Auto-detect models, assign roles by size |
+| `python main.py --install-lmstudio` | Auto-detect models, assign roles by size (safe mode) |
 | `python main.py --install-lmstudio-manual` | Manually assign models to roles |
 | `python main.py --lmstudio-status` | Show server status and current assignments |
 | `python main.py --reset-go` | Restore Go plan from backup |
 
 **How role assignment works:**
 1. Connects to `http://localhost:1234/v1/models` (OpenAI-compatible endpoint)
-2. Filters LLM models (excludes embeddings)
-3. Sorts by parameter size (7B, 14B, 32B...)
-4. Assigns: largest → orchestrator, 2nd → code-analyst, etc.
-5. Code models get a boost for the code-analyst role
-6. Backs up Go agents before replacing them
+2. Filters LLM models (excludes embeddings and known-broken models from critical roles)
+3. Ranks by parameter size with +0.5 boost for code models
+4. Assigns in priority: orchestrator → code-analyst → validator → bulk-processor → subagent
+5. Duplicates smaller models when more roles than available LLMs
+6. Backs up Go agents before replacing them (both project and global)
 7. Writes LM Studio provider to `~/.config/opencode/opencode.jsonc` automatically
+
+#### Hardware Tiers
+
+oh-my-agents works on modest hardware. These tiers help choose the right model:
+
+| Tier | Hardware | Max Model | Example Models |
+|------|----------|-----------|----------------|
+| **Integrated** | Intel UHD/Iris, no GPU | 1.5B-3B | Qwen Coder 1.5B, Ministral 3B, Phi-3 Mini |
+| **Entry GPU** | GTX 1650/1660, RTX 3050 (4-6GB) | 3B-7B | Ministral 3B, Gemma 4 E2B, Qwen 2.5 7B |
+| **Mid GPU** | RTX 2060/3060/4060 (6-12GB) | 7B-14B | Qwen 2.5 7B, Mistral 7B, Llama 3.1 8B |
+| **High GPU** | RTX 3090/4090 (24GB+) | 30B-70B | Llama 3.3 70B, Qwen 2.5 72B |
 
 **Requirements:**
 - LM Studio **0.4+** running with the HTTP server enabled
@@ -546,6 +557,7 @@ LM Studio provides unlimited local inference with no API key needed. Models are 
 **Troubleshooting:**
 - Run `python main.py --lmstudio-status` to check if LM Studio is detected
 - If you get `invalid_api_key` errors, disable API token auth in LM Studio's Server settings
+- If the orchestrator has template errors, `safe_assign_roles()` will reassign Nemotron to subagent automatically
 - The global config is written to `~/.config/opencode/opencode.jsonc` — no local `opencode.json` needed
 
 ---
@@ -611,7 +623,7 @@ oh-my-agents/
 | `--version` | Show current version |
 | `--check-updates` | Check if a newer version is available on GitHub |
 | `--update` | Update oh-my-agents to the latest release |
-| `--install-lmstudio` | Install LM Studio agents (auto-assign roles by model size, writes global config) |
+| `--install-lmstudio` | Install LM Studio agents (auto-assign roles, avoids broken templates, writes global config) |
 | `--install-lmstudio-manual` | Install LM Studio agents with manual role assignment |
 | `--lmstudio-status` | Show LM Studio server status and model assignments |
 | `--reset-go` | Reset to Go plan, restore backed up agents |
@@ -647,10 +659,29 @@ oh-my-agents/
 - `plan_manager.py` — Simplified: Go-only, lmstudio via plan.json
 - `plan_fallback.py` — Simplified: no automatic fallback chain
 - `main.py` — 4 new commands + interactive menu options
-- `tests/test_lmstudio.py` — New: 16 tests for LM Studio manager
+- `tests/test_lmstudio.py` — 26 tests: detection, parsing, role assignment, global config, safe_assign
 - `tests/test_plan_manager.py` — Updated for Go-only behavior
 
 **Tests:** 158 passing
+
+### v1.7.2 — Global Agent Install, Nemotron Template Fix & Hardware Tiers (May 2026)
+
+**Bug fix — LM Studio agents installed globally:**
+- `install_lmstudio_agents()` now writes agents to both project `.opencode/agents/` AND global `~/.opencode/agents/` so `opencode --agent orchestrator` finds LM Studio models.
+- `reset_to_go()` restores both locations from backup.
+
+**Bug fix — Nemotron broken Jinja2 template:**
+- Added `safe_assign_roles()` that detects Nemotron (and similar broken models) and reassigns them to `subagent` (least critical), keeping stable models for orchestrator.
+
+**New feature — Hardware tiers:**
+- Documented 4 hardware tiers (Integrated, Entry GPU, Mid GPU, High GPU) with recommended models for each.
+
+**Files modified:**
+- `lmstudio_manager.py` — Added `safe_assign_roles()`, `_install_agents_to_dir()`, `_restore_agents_from_backup()`, `_rmtree()`, model limits in config
+- `main.py` — Fixed Unicode arrow for Windows cp1252
+- `tests/test_lmstudio.py` — 6 new tests (26 total)
+
+**Tests:** 168 passing (26 LM Studio tests)
 
 ### v1.7.1 — LM Studio Auth Fix & Global Config (May 2026)
 
@@ -664,7 +695,7 @@ oh-my-agents/
 **Files modified:**
 - `lmstudio_manager.py` — Added global config writer, rewritten for v1 API
 
-**Tests:** 162 passing (19 pre-existing failures on LM Studio projects)
+**Tests:** 168 passing (19 pre-existing failures on LM Studio projects where tests expect Go plan)
 
 ### v1.6.0 — Project Database & Auto-Session Continuity (May 2026)
 
