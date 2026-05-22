@@ -5,7 +5,9 @@ Detects LM Studio server, lists downloaded models, ranks them by size,
 and assigns roles automatically or manually.
 """
 import json
+import os
 import re
+import shutil
 import urllib.request
 import urllib.error
 from pathlib import Path
@@ -16,6 +18,8 @@ LMSTUDIO_API_V0 = f"{LMSTUDIO_BASE}/api/v0"
 LMSTUDIO_API_V1 = f"{LMSTUDIO_BASE}/api/v1"
 
 GLOBAL_OPENCODE_CONFIG = Path.home() / ".config" / "opencode" / "opencode.jsonc"
+GLOBAL_AGENTS_DIR = Path.home() / ".opencode" / "agents"
+GLOBAL_BACKUP_DIR = Path.home() / ".opencode" / "agents-go-backup"
 
 ROLE_NAMES = [
     "orchestrator", "code-analyst", "validator", "bulk-processor",
@@ -207,7 +211,14 @@ def ensure_global_lmstudio_config(installed: List[Dict]):
     for entry in installed:
         model_id = entry["model"]
         display = entry["display"]
-        provider_models[model_id] = {"name": display}
+        params = entry.get("params", "")
+        provider_models[model_id] = {
+            "name": display,
+            "limit": {
+                "context": 32768,
+                "output": 4096,
+            },
+        }
 
     lmstudio_config = {
         "npm": "@ai-sdk/openai-compatible",
@@ -227,40 +238,29 @@ def ensure_global_lmstudio_config(installed: List[Dict]):
         f.write("\n")
 
 
-def install_lmstudio_agents(project_root: Path, models: List[Dict], manual: bool = False) -> Dict:
-    """
-    Install LM Studio agents to .opencode/agents/.
-    Backs up existing Go agents, creates new LM Studio agents.
-    Also updates global opencode.jsonc with the LM Studio provider.
-    Returns dict with status info.
-    """
-    agents_dir = project_root / ".opencode" / "agents"
-    backup_dir = project_root / ".opencode" / "agents-go-backup"
+def _rmtree(path: Path):
+    """Remove a directory tree, handling Windows permission errors."""
+    def handle_error(func, fpath, exc_info):
+        os.chmod(fpath, 0o777)
+        func(fpath)
+    shutil.rmtree(path, onerror=handle_error)
 
-    # Backup existing Go agents
-    if agents_dir.exists():
+
+def _install_agents_to_dir(target_dir: Path, assignments: List[Tuple[str, Dict]], backup_dir: Path) -> List[Dict]:
+    """Backup existing agents in target_dir, then write LM Studio agents."""
+    if target_dir.exists():
         if backup_dir.exists():
-            import shutil
-            shutil.rmtree(backup_dir)
-        import shutil
-        shutil.copytree(agents_dir, backup_dir)
+            _rmtree(backup_dir)
+        shutil.copytree(target_dir, backup_dir)
 
-    agents_dir.mkdir(parents=True, exist_ok=True)
-
-    # Remove existing agent files
-    for f in agents_dir.glob("*.md"):
+    target_dir.mkdir(parents=True, exist_ok=True)
+    for f in target_dir.glob("*.md"):
         f.unlink()
-
-    if manual:
-        # Manual mode: let user assign roles
-        assignments = _manual_assign(models)
-    else:
-        assignments = auto_assign_roles(models)
 
     installed = []
     for role, model_info in assignments:
         content = format_agent_md(role, model_info)
-        file_path = agents_dir / f"{role}.md"
+        file_path = target_dir / f"{role}.md"
         file_path.write_text(content, encoding="utf-8")
         installed.append({
             "role": role,
@@ -268,8 +268,48 @@ def install_lmstudio_agents(project_root: Path, models: List[Dict], manual: bool
             "display": model_info["display_name"],
             "params": model_info["params_string"],
         })
+    return installed
 
-    # Save plan.json
+
+def _restore_agents_from_backup(target_dir: Path, backup_dir: Path) -> int:
+    """Restore agents from backup dir into target dir. Returns count restored."""
+    restored = 0
+    if backup_dir.exists():
+        if target_dir.exists():
+            _rmtree(target_dir)
+        shutil.copytree(backup_dir, target_dir)
+        restored = len(list(target_dir.glob("*.md")))
+        _rmtree(backup_dir)
+    return restored
+
+
+def install_lmstudio_agents(project_root: Path, models: List[Dict], manual: bool = False) -> Dict:
+    """
+    Install LM Studio agents to .opencode/agents/ and ~/.opencode/agents/.
+    Backs up existing Go agents in both locations, creates new LM Studio agents.
+    Also updates global opencode.jsonc with the LM Studio provider.
+    Returns dict with status info.
+    """
+    # Determine assignments
+    if manual:
+        assignments = _manual_assign(models)
+    else:
+        assignments = auto_assign_roles(models)
+
+    if not assignments:
+        return {"installed": [], "count": 0, "backup_dir": ""}
+
+    # Install to project agents (for main.py detection)
+    proj_agents = project_root / ".opencode" / "agents"
+    proj_backup = project_root / ".opencode" / "agents-go-backup"
+    proj_installed = _install_agents_to_dir(proj_agents, assignments, proj_backup)
+
+    # Also install to global agents (for opencode --agent resolution)
+    global_installed = _install_agents_to_dir(GLOBAL_AGENTS_DIR, assignments, GLOBAL_BACKUP_DIR)
+
+    installed = proj_installed or global_installed
+
+    # Save plan.json in project
     plan_path = project_root / ".opencode" / "plan.json"
     plan_path.parent.mkdir(parents=True, exist_ok=True)
     with open(plan_path, "w", encoding="utf-8") as f:
@@ -281,7 +321,7 @@ def install_lmstudio_agents(project_root: Path, models: List[Dict], manual: bool
     return {
         "installed": installed,
         "count": len(installed),
-        "backup_dir": str(backup_dir),
+        "backup_dir": str(proj_backup),
     }
 
 
@@ -326,33 +366,26 @@ def _manual_assign(models: List[Dict]) -> List[Tuple[str, Dict]]:
 
 def reset_to_go(project_root: Path) -> Dict:
     """
-    Restore Go agents from backup, remove LM Studio plan.
-    Returns status dict.
+    Restore Go agents from backup in both project and global dirs.
+    Removes LM Studio plan.json. Returns status dict.
     """
-    agents_dir = project_root / ".opencode" / "agents"
-    backup_dir = project_root / ".opencode" / "agents-go-backup"
+    proj_agents = project_root / ".opencode" / "agents"
+    proj_backup = project_root / ".opencode" / "agents-go-backup"
     plan_path = project_root / ".opencode" / "plan.json"
 
-    restored = 0
+    proj_restored = _restore_agents_from_backup(proj_agents, proj_backup)
+    global_restored = _restore_agents_from_backup(GLOBAL_AGENTS_DIR, GLOBAL_BACKUP_DIR)
 
-    if backup_dir.exists():
-        import shutil
-        # Clear current agents
-        if agents_dir.exists():
-            shutil.rmtree(agents_dir)
-        # Restore from backup
-        shutil.copytree(backup_dir, agents_dir)
-        restored = len(list(agents_dir.glob("*.md")))
-        # Remove backup
-        shutil.rmtree(backup_dir)
+    restored = proj_restored or global_restored
 
-    # Remove plan.json to revert to Go
     if plan_path.exists():
         plan_path.unlink()
 
     return {
         "restored": restored,
-        "backup_existed": backup_dir.exists() if backup_dir else False,
+        "proj_restored": proj_restored,
+        "global_restored": global_restored,
+        "backup_existed": proj_backup.exists(),
     }
 
 
