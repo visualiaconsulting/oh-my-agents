@@ -15,6 +15,8 @@ LMSTUDIO_BASE = "http://localhost:1234"
 LMSTUDIO_API_V0 = f"{LMSTUDIO_BASE}/api/v0"
 LMSTUDIO_API_V1 = f"{LMSTUDIO_BASE}/api/v1"
 
+GLOBAL_OPENCODE_CONFIG = Path.home() / ".config" / "opencode" / "opencode.jsonc"
+
 ROLE_NAMES = [
     "orchestrator", "code-analyst", "validator", "bulk-processor",
     "subagent", "summarizer", "frontend", "ml-specialist"
@@ -60,22 +62,34 @@ def _parse_params(params_str: str) -> float:
 
 
 def check_lmstudio_running(timeout: int = 3) -> bool:
-    """Check if LM Studio server is running and accessible."""
+    """Check if LM Studio server is running and accessible via the OpenAI-compatible endpoint."""
     try:
-        req = urllib.request.Request(f"{LMSTUDIO_API_V0}/models", method="GET")
+        req = urllib.request.Request(f"{LMSTUDIO_BASE}/v1/models", method="GET")
         urllib.request.urlopen(req, timeout=timeout)
         return True
     except Exception:
         return False
 
 
+def _model_id_to_display(model_id: str) -> str:
+    """Convert a raw model ID to a human-readable display name."""
+    name = model_id.replace("-", " ").replace("_", " ").strip()
+    parts = name.split()
+    cleaned = []
+    for p in parts:
+        if p.lower() in ("instruct", "gguf", "q4", "q5", "q8", "q2", "q3", "q6"):
+            continue
+        cleaned.append(p)
+    return " ".join(cleaned).title() if cleaned else model_id
+
+
 def list_models() -> List[Dict]:
     """
-    Fetch models from LM Studio REST API v0.
+    Fetch models from the LM Studio OpenAI-compatible endpoint (/v1/models).
     Returns list of LLM models with metadata, sorted by params (desc).
     """
     try:
-        req = urllib.request.Request(f"{LMSTUDIO_API_V0}/models", method="GET")
+        req = urllib.request.Request(f"{LMSTUDIO_BASE}/v1/models", method="GET")
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read().decode("utf-8"))
     except Exception as e:
@@ -85,37 +99,31 @@ def list_models() -> List[Dict]:
     llm_models = []
 
     for m in raw_models:
-        model_type = m.get("type", "")
-        state = m.get("state", "not-loaded")
-
-        # Skip embedding models
-        if model_type == "embedding":
+        model_id = m.get("id", "")
+        if not model_id:
             continue
 
-        params_str = m.get("paramsString", "")
-        params = _parse_params(params_str)
-        max_ctx = m.get("max_context_length", 0)
-        arch = m.get("arch", "")
-        quant = m.get("quantization", "")
-        model_id = m.get("id", "")
-        publisher = m.get("publisher", "")
-        display = m.get("displayName", model_id)
+        params_str = ""
+        params = _parse_params(model_id)
+        if params > 0:
+            params_str = f"{params}B"
+
+        display = _model_id_to_display(model_id)
 
         llm_models.append({
             "id": model_id,
             "display_name": display,
-            "publisher": publisher,
-            "arch": arch,
-            "quantization": quant,
+            "publisher": m.get("owned_by", ""),
+            "arch": "",
+            "quantization": "",
             "params_string": params_str,
             "params": params,
-            "max_context_length": max_ctx,
-            "state": state,
-            "is_loaded": state == "loaded",
+            "max_context_length": 32768,
+            "state": "loaded",
+            "is_loaded": True,
             "is_code": bool(re.search(r'code|coder|instruct', model_id, re.IGNORECASE)),
         })
 
-    # Sort: params desc, then max_context_length desc, then display name
     llm_models.sort(key=lambda m: (m["params"], m["max_context_length"], m["display_name"]), reverse=True)
     return llm_models
 
@@ -172,10 +180,58 @@ permission:
 """
 
 
+def _get_global_config_path() -> Path:
+    """Resolve the global OpenCode config path dynamically."""
+    return Path.home() / ".config" / "opencode" / "opencode.jsonc"
+
+
+def ensure_global_lmstudio_config(installed: List[Dict]):
+    """
+    Add or update the LM Studio provider in ~/.config/opencode/opencode.jsonc
+    so that OpenCode knows how to connect to the local LM Studio server and
+    which models are available.
+    """
+    config_path = _get_global_config_path()
+    config_dir = config_path.parent
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    config = {}
+    if config_path.exists():
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            config = {}
+
+    provider_models = {}
+    for entry in installed:
+        model_id = entry["model"]
+        display = entry["display"]
+        provider_models[model_id] = {"name": display}
+
+    lmstudio_config = {
+        "npm": "@ai-sdk/openai-compatible",
+        "name": "LM Studio (local)",
+        "options": {
+            "baseURL": "http://127.0.0.1:1234/v1"
+        },
+        "models": provider_models,
+    }
+
+    if "provider" not in config:
+        config["provider"] = {}
+    config["provider"]["lmstudio"] = lmstudio_config
+
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+
 def install_lmstudio_agents(project_root: Path, models: List[Dict], manual: bool = False) -> Dict:
     """
     Install LM Studio agents to .opencode/agents/.
     Backs up existing Go agents, creates new LM Studio agents.
+    Also updates global opencode.jsonc with the LM Studio provider.
     Returns dict with status info.
     """
     agents_dir = project_root / ".opencode" / "agents"
@@ -218,6 +274,9 @@ def install_lmstudio_agents(project_root: Path, models: List[Dict], manual: bool
     plan_path.parent.mkdir(parents=True, exist_ok=True)
     with open(plan_path, "w", encoding="utf-8") as f:
         json.dump({"plan": "lmstudio"}, f)
+
+    # Update global OpenCode config with LM Studio provider
+    ensure_global_lmstudio_config(installed)
 
     return {
         "installed": installed,

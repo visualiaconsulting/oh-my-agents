@@ -91,6 +91,7 @@ Command-line interface that:
 - **Version info:** `--version` — shows the current installed version
 - **Update checking:** `--check-updates` — queries GitHub API for newer releases
 - **Auto-update:** `--update` — downloads and applies the latest release automatically
+- **LM Studio integration:** `--lmstudio-status`, `--install-lmstudio`, `--install-lmstudio-manual`, `--reset-go` — detect local models, assign roles, write global config
 
 ### `session_manager.py` — Session Bitacora
 
@@ -108,6 +109,20 @@ Manages skills from the skills.sh ecosystem:
 - **`install_skill(identifier)`** — Downloads skill from GitHub to `.opencode/skills/`
 - **`inject_skills_context()`** — Generates markdown context from installed skills
 - **`update_context_md()`** — Updates `context.md` with active skills
+
+### `lmstudio_manager.py` — LM Studio Integration
+
+Manages local model inference via LM Studio:
+- **`check_lmstudio_running()`** — Checks if LM Studio server is accessible at `http://localhost:1234/v1/models`
+- **`list_models()`** — Fetches available models from the OpenAI-compatible endpoint, sorts by parameter size
+- **`auto_assign_roles()`** — Assigns largest model to orchestrator, 2nd to code-analyst, etc.; code models get a boost for code-analyst
+- **`ensure_global_lmstudio_config()`** — Writes/updates the LM Studio provider in `~/.config/opencode/opencode.jsonc` with baseURL, npm package, and assigned models
+- **`format_agent_md()`** — Generates agent `.md` files with model ID `lmstudio/<model-name>`
+- **`install_lmstudio_agents()`** — Backs up Go agents, creates LM Studio agents, writes `plan.json`, calls `ensure_global_lmstudio_config()`
+- **`reset_to_go()`** — Restores Go agents from backup, removes `plan.json`
+- **`get_status()`** — Returns server status, model count, and model list
+
+**Required:** LM Studio 0.4+ with API token authentication disabled in the Developer → Server panel.
 
 ### `cli/wizard.py` — Setup Wizard
 
@@ -128,6 +143,25 @@ The **Qwen3.6 Plus** and **Qwen3.5 Plus** models were previously removed from th
 ---
 
 ## 📝 Changelog
+
+### v1.7.1 — LM Studio Auth Fix & Global Config (May 2026)
+
+**Bug fix — LM Studio API token requirement:**
+- **Problem:** LM Studio 0.4.12+ requires a Bearer token for all API endpoints (`invalid_api_key` error), and the `http-server-config.json` had no `apiToken` field.
+- **Solution:** Documented that users must disable "Require API Token" in LM Studio Developer → Server panel. Updated `check_lmstudio_running()` and `list_models()` to use the OpenAI-compatible `/v1/models` endpoint instead of the removed `/api/v0/models`.
+- `list_models()` now parses the v1 response format `{data: [{id, owned_by}]}` and infers parameters from model ID pattern.
+
+**New feature — Global provider config:**
+- Added `ensure_global_lmstudio_config()` to write/update LM Studio provider in `~/.config/opencode/opencode.jsonc` so OpenCode knows how to connect to the local server.
+- Called automatically during `--install-lmstudio` after agents and `plan.json` are written.
+
+**New files:**
+- `tests/test_lmstudio.py` — 4 new tests for `ensure_global_lmstudio_config()` (creation, merge, update, empty list)
+
+**Files modified:**
+- `lmstudio_manager.py` — Added `ensure_global_lmstudio_config()` and `_get_global_config_path()`, rewrote `check_lmstudio_running()` and `list_models()` for v1 API, added `_model_id_to_display()` helper
+
+**Tests:** 162 passing (19 pre-existing failures on LM Studio-installed projects where tests expect Go plan)
 
 ### v1.6.0 — Project Database & Auto-Session Continuity (May 2026)
 
@@ -486,6 +520,7 @@ Translated all documentation, comments, and user-facing strings from Spanish to 
 | 13 | `setup.ps1` had no ExecutionPolicy guidance, no `cd` to script dir, only tried `python` | `setup.ps1` | Added `Set-Location $ScriptDir`, `Find-Python` function, ExecutionPolicy comments |
 | 14 | `setup.sh` had no `cd` to script dir, `--install-global` flag checked after `main.py` ran | `setup.sh` | Added `cd "$SCRIPT_DIR"`, moved flag check before `main.py` |
 | 15 | Sessions/skills/logs saved to SYSTEM_ROOT instead of WORKING_ROOT — broke continuity across projects | `main.py`, `session_manager.py`, `skill_registry.py`, `utils.py` (new) | Introduced `SYSTEM_ROOT` vs `WORKING_ROOT` separation. `find_agent_source()` for 3-level agent discovery. All runtime data now bound to active project. |
+| 16 | LM Studio `invalid_api_key` — auth token required by LM Studio 0.4.12+, v0 API endpoints removed | `lmstudio_manager.py` | Switched to OpenAI-compatible `/v1/models` endpoint. Documented disabling "Require API Token" in LM Studio Developer panel. |
 
 ---
 
@@ -506,6 +541,7 @@ Translated all documentation, comments, and user-facing strings from Spanish to 
 ├── skill_recommender.py         # Auto-skill recommendation engine
 ├── skills_catalog.json          # Built-in skills catalog (9 skills)
 ├── update_manager.py            # Automatic update system
+├── lmstudio_manager.py          # LM Studio integration (detection, role assignment, global config)
 ├── VERSION                      # Current version tracker
 ├── utils.py                     # Cross-platform helpers
 ├── requirements.txt             # Python dependencies (now includes requests)
@@ -523,6 +559,7 @@ Translated all documentation, comments, and user-facing strings from Spanish to 
 │   ├── test_wizard.py           # 22 tests: defaults, permissions, save
 │   ├── test_main.py             # 15 tests: agents, deps, global install, uninstall
 │   ├── test_update_manager.py   # 10 tests: version, updates, merge
+│   ├── test_lmstudio.py         # 20 tests: LM Studio detection, role assignment, global config
 │   ├── test_mcp.py              # 10 tests: MCP config, client, recommender
 │   └── test_project_db.py       # 20+ tests: project database, continuity
 ├── .github/
@@ -570,7 +607,7 @@ print(f"Available models: {pm.get_available_models()}")
 
 ## 🚀 Suggested Next Steps
 
-1. **Run tests locally:** `pytest tests/ -v` (86 tests, all current features covered)
+1. **Run tests locally:** `pytest tests/ -v` (162 tests, all current features covered)
 2. **Connectivity Validation:** Run `python main.py` to verify that the PlanManager correctly detects the environment
 3. **Delegation Tests:** Use `opencode --agent orchestrator` with a complex task to validate interaction between agents (works from any folder after global install)
 4. **Model Health Check:** Run `python main.py --doctor` to verify all agent model IDs are valid
@@ -581,6 +618,8 @@ print(f"Available models: {pm.get_available_models()}")
 9. **Test project DB:** Run `python main.py --project-status` to verify project continuity features
 10. **Enable auto-session:** Run `python main.py --auto-enable` to enable automatic session saving
 11. **View continuity:** Run `python main.py --continue` to see re-entry context
+12. **LM Studio test:** Run `python main.py --lmstudio-status` to verify local model detection
+13. **LM Studio install:** Run `python main.py --install-lmstudio` to switch to local models
 
 ---
 

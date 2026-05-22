@@ -6,7 +6,7 @@
 
 [![OpenCode](https://img.shields.io/badge/Built_for-OpenCode_Go-00D4AA?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyTDIgN2wxMCA1IDEwLTVNMiAxN2wxMCA1IDEwLTVNMiAxMmwxMCA1IDEwLTUiLz48L3N2Zz4=)](https://opencode.ai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.6.0-blue?style=for-the-badge)](https://github.com/visualiaconsulting/oh-my-agents/releases/tag/v1.6.0)
+[![Version](https://img.shields.io/badge/version-1.7.1-blue?style=for-the-badge)](https://github.com/visualiaconsulting/oh-my-agents/releases/tag/v1.7.1)
 [![GitHub Stars](https://img.shields.io/github/stars/visualiaconsulting/oh-my-agents?style=for-the-badge&logo=github)](https://github.com/visualiaconsulting/oh-my-agents/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/visualiaconsulting/oh-my-agents?style=for-the-badge&logo=github)](https://github.com/visualiaconsulting/oh-my-agents/issues)
 
@@ -30,7 +30,7 @@
 | 📝 **Session Continuity** | Never lose context between sessions. Automatic bitacora saves errors, changes, and pending tasks |
 | 🧩 **Skills Ecosystem** | Extend agent capabilities with reusable skills from [skills.sh](https://skills.sh) |
 | 🔄 **Go-Only Standard** | Plan Go es el único plan por defecto. Sin fallback automático — reinstala si te quedas sin créditos |
-| 🖥️ **LM Studio Integration** | Detecta modelos locales, asigna roles por tamaño, uso ilimitado sin API key (v1.7.0) |
+| 🖥️ **LM Studio Integration** | Detecta modelos locales, asigna roles por tamaño, escribe config global `~/.config/opencode/`, uso ilimitado sin API key (v1.7.1) |
 | 🚀 **Zero Config Start** | Clone, run setup, start coding. The wizard handles the rest |
 | 📦 **Portable** | Copy agents to any project — they adapt via `context.md` |
 | 🗄️ **Project Database** | SQLite DB per project stores sessions, file changes, errors, commands (v1.6.0) |
@@ -530,12 +530,23 @@ LM Studio provides unlimited local inference with no API key needed. Models are 
 | `python main.py --reset-go` | Restore Go plan from backup |
 
 **How role assignment works:**
-1. Connects to `http://localhost:1234/api/v0/models`
+1. Connects to `http://localhost:1234/v1/models` (OpenAI-compatible endpoint)
 2. Filters LLM models (excludes embeddings)
 3. Sorts by parameter size (7B, 14B, 32B...)
 4. Assigns: largest → orchestrator, 2nd → code-analyst, etc.
 5. Code models get a boost for the code-analyst role
 6. Backs up Go agents before replacing them
+7. Writes LM Studio provider to `~/.config/opencode/opencode.jsonc` automatically
+
+**Requirements:**
+- LM Studio **0.4+** running with the HTTP server enabled
+- **API Token authentication must be disabled** in LM Studio → Developer → Server panel (uncheck "Require API Token")
+- Models must be already downloaded in LM Studio
+
+**Troubleshooting:**
+- Run `python main.py --lmstudio-status` to check if LM Studio is detected
+- If you get `invalid_api_key` errors, disable API token auth in LM Studio's Server settings
+- The global config is written to `~/.config/opencode/opencode.jsonc` — no local `opencode.json` needed
 
 ---
 
@@ -600,7 +611,7 @@ oh-my-agents/
 | `--version` | Show current version |
 | `--check-updates` | Check if a newer version is available on GitHub |
 | `--update` | Update oh-my-agents to the latest release |
-| `--install-lmstudio` | Install LM Studio agents (auto-assign roles by model size) |
+| `--install-lmstudio` | Install LM Studio agents (auto-assign roles by model size, writes global config) |
 | `--install-lmstudio-manual` | Install LM Studio agents with manual role assignment |
 | `--lmstudio-status` | Show LM Studio server status and model assignments |
 | `--reset-go` | Reset to Go plan, restore backed up agents |
@@ -640,6 +651,20 @@ oh-my-agents/
 - `tests/test_plan_manager.py` — Updated for Go-only behavior
 
 **Tests:** 158 passing
+
+### v1.7.1 — LM Studio Auth Fix & Global Config (May 2026)
+
+**Bug fix — LM Studio API token requirement:**
+- LM Studio 0.4.12+ requires a Bearer token. Fixed by documenting the "Require API Token" toggle in Developer → Server panel.
+- Switched from deprecated `/api/v0/models` to OpenAI-compatible `/v1/models` endpoint.
+
+**New feature:**
+- `ensure_global_lmstudio_config()` writes LM Studio provider to `~/.config/opencode/opencode.jsonc` so OpenCode can connect to the local server. Called automatically during `--install-lmstudio`.
+
+**Files modified:**
+- `lmstudio_manager.py` — Added global config writer, rewritten for v1 API
+
+**Tests:** 162 passing (19 pre-existing failures on LM Studio projects)
 
 ### v1.6.0 — Project Database & Auto-Session Continuity (May 2026)
 

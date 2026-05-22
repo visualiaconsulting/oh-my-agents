@@ -1,8 +1,16 @@
+import json
+import os
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 from lmstudio_manager import (
     _parse_params,
     auto_assign_roles,
+    ensure_global_lmstudio_config,
     format_agent_md,
+    GLOBAL_OPENCODE_CONFIG,
     ROLE_NAMES,
 )
 
@@ -133,3 +141,93 @@ class TestFormatAgentMd:
             assert "name:" in content
             assert "model:" in content
             assert "permission:" in content
+
+
+class TestEnsureGlobalLmstudioConfig:
+    def _make_installed(self, model_id, display, role="orchestrator"):
+        return {
+            "role": role,
+            "model": model_id,
+            "display": display,
+            "params": "7B",
+        }
+
+    def _run_with_temp_home(self, installed, preexisting_config=None):
+        """
+        Temporarily redirect Path.home() to a temp directory so
+        GLOBAL_OPENCODE_CONFIG resolves inside tmpdir.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fake_home = Path(tmpdir)
+            config_dir = fake_home / ".config" / "opencode"
+            config_dir.mkdir(parents=True, exist_ok=True)
+            config_file = config_dir / "opencode.jsonc"
+
+            if preexisting_config is not None:
+                config_file.write_text(
+                    json.dumps(preexisting_config, indent=2), encoding="utf-8"
+                )
+                assert config_file.exists()
+
+            with patch.object(Path, "home", return_value=fake_home):
+                ensure_global_lmstudio_config(installed)
+
+                assert config_file.exists()
+                with open(config_file, encoding="utf-8") as f:
+                    return json.load(f)
+
+    def test_creates_new_file_when_not_exists(self):
+        installed = [
+            self._make_installed("qwen2.5-7b-instruct", "Qwen2.5 7B Instruct"),
+            self._make_installed("llama-3.1-8b", "Llama 3.1 8B", "code-analyst"),
+        ]
+        data = self._run_with_temp_home(installed)
+
+        assert "provider" in data
+        assert "lmstudio" in data["provider"]
+        lmstudio = data["provider"]["lmstudio"]
+        assert lmstudio["npm"] == "@ai-sdk/openai-compatible"
+        assert lmstudio["name"] == "LM Studio (local)"
+        assert lmstudio["options"]["baseURL"] == "http://127.0.0.1:1234/v1"
+        assert "qwen2.5-7b-instruct" in lmstudio["models"]
+        assert lmstudio["models"]["qwen2.5-7b-instruct"]["name"] == "Qwen2.5 7B Instruct"
+        assert "llama-3.1-8b" in lmstudio["models"]
+
+    def test_merges_with_existing_config(self):
+        installed = [
+            self._make_installed("qwen2.5-7b-instruct", "Qwen2.5 7B Instruct"),
+        ]
+        data = self._run_with_temp_home(installed, {
+            "mcp": {
+                "filesystem": {"type": "local", "command": ["npx", "..."]}
+            }
+        })
+
+        assert "mcp" in data
+        assert "filesystem" in data["mcp"]
+        assert "provider" in data
+        assert "lmstudio" in data["provider"]
+
+    def test_updates_existing_lmstudio_config(self):
+        installed = [
+            self._make_installed("new-model", "New Model"),
+        ]
+        data = self._run_with_temp_home(installed, {
+            "provider": {
+                "lmstudio": {
+                    "npm": "@ai-sdk/openai-compatible",
+                    "name": "LM Studio (old)",
+                    "options": {"baseURL": "http://127.0.0.1:1234/v1"},
+                    "models": {"old-model": {"name": "Old Model"}},
+                }
+            }
+        })
+
+        lmstudio = data["provider"]["lmstudio"]
+        assert "new-model" in lmstudio["models"]
+        assert "old-model" not in lmstudio["models"]
+        assert lmstudio["name"] == "LM Studio (local)"
+
+    def test_handles_empty_installed_list(self):
+        data = self._run_with_temp_home([])
+        assert data["provider"]["lmstudio"]["models"] == {}
