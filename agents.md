@@ -215,6 +215,22 @@ Alternatively, download a model with a known-good template from the [Recommended
 
 ## 📝 Changelog
 
+### v1.7.3 — Context Fix & LM Studio Documentation (May 2026)
+
+**Bug fix — Low model context causing `n_keep >= n_ctx` error:**
+- **Problem:** LM Studio models (Ministral 3 3B, Qwen2.5 Coder 1.5B) were loaded with insufficient context (2048/4096), causing `n_keep >= n_ctx` errors when OpenCode tried to use them.
+- **Solution:** Documented the fix in LM Studio troubleshooting. Models must be configured with Context Length ≥ 32768 in LM Studio Settings, then reloaded or the server restarted. After reload, Ministral and Qwen2.5 Coder both show 32768 context.
+
+**Documentation updates:**
+- Added `n_keep >= n_ctx` troubleshooting entry to README.md LM Studio section
+- Updated AGENTS.md with v1.7.3 changelog and fix #19
+
+**Files modified:**
+- `README.md` — Added context troubleshooting in LM Studio section
+- `AGENTS.md` — Added v1.7.3 changelog and fix #19
+
+**Tests:** 168 passing (same as v1.7.2)
+
 ### v1.7.2 — Global Agent Install, Nemotron Template Fix & Hardware Tiers (May 2026)
 
 **Bug fix — `--install-lmstudio` only wrote project agents:**
@@ -598,7 +614,7 @@ Translated all documentation, comments, and user-facing strings from Spanish to 
 
 ---
 
-## 🐛 Recent Fixes Applied (April 2026)
+## 🐛 Recent Fixes Applied (May 2026)
 
 | # | Problem | File | Solution |
 |---|----------|---------|----------|
@@ -620,6 +636,7 @@ Translated all documentation, comments, and user-facing strings from Spanish to 
 | 16 | LM Studio `invalid_api_key` — auth token required by LM Studio 0.4.12+, v0 API endpoints removed | `lmstudio_manager.py` | Switched to OpenAI-compatible `/v1/models` endpoint. Documented disabling "Require API Token" in LM Studio Developer panel. |
 | 17 | LM Studio agents only installed to project dir — `opencode --agent orchestrator` still used Go plan | `lmstudio_manager.py` | Added `_install_agents_to_dir()` to write agents to both project `.opencode/agents/` and global `~/.opencode/agents/`. `reset_to_go()` restores both. |
 | 18 | Nemotron 3 Nano 4B Jinja2 template crashes every request (`Cannot apply filter "string" to type: NullValue`) | `lmstudio_manager.py` | Added `safe_assign_roles()` that detects broken models and reassigns them to `subagent`, keeping stable models for orchestrator. |
+| 19 | LM Studio models loaded with insufficient context (`n_keep >= n_ctx` error) | `README.md`, `AGENTS.md` | Documented fix: set Context Length ≥ 32768 in LM Studio Settings, then reload model or restart server. |
 
 ---
 

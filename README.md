@@ -558,6 +558,7 @@ oh-my-agents works on modest hardware. These tiers help choose the right model:
 - Run `python main.py --lmstudio-status` to check if LM Studio is detected
 - If you get `invalid_api_key` errors, disable API token auth in LM Studio's Server settings
 - If the orchestrator has template errors, `safe_assign_roles()` will reassign Nemotron to subagent automatically
+- **Error `n_keep >= n_ctx`**: Occurs when a model is loaded with insufficient context tokens (e.g. 2048/4096). **Solution:** In LM Studio, select the model, go to Settings > Context Length and set it to ≥ 32768. Click "Reload Model" or restart LM Studio. Verify with `python main.py --lmstudio-status`.
 - The global config is written to `~/.config/opencode/opencode.jsonc` — no local `opencode.json` needed
 
 ---
