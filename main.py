@@ -745,8 +745,9 @@ def run_install_lmstudio(working_root=None, manual=False):
     ctx = result.get("context", {})
     if ctx.get("changed"):
         console.print(f"\n[yellow]Context fix applied:[/yellow] {ctx['message']}")
-    elif "Context already" not in ctx.get("message", ""):
-        console.print(f"\n[yellow]Note:[/yellow] {ctx['message']}")
+        console.print("[yellow]Action required:[/yellow] Reload the model in LM Studio (select another model, then reselect it) or restart LM Studio.")
+    elif ctx.get("message"):
+        console.print(f"  [dim]Context: {ctx['message']}[/dim]")
 
 
 def run_lmstudio_status(working_root=None):
@@ -771,7 +772,9 @@ def run_lmstudio_status(working_root=None):
         for i, m in enumerate(models, 1):
             loaded = " [green]loaded[/green]" if m["is_loaded"] else ""
             code_tag = " [yellow]code[/yellow]" if m["is_code"] else ""
-            console.print(f"    {i}. {m['display_name']} ({m['params_string']}){loaded}{code_tag}")
+            ctx = m["max_context_length"]
+            ctx_tag = f" [dim]context: {ctx if ctx > 0 else '—'}[/dim]"
+            console.print(f"    {i}. {m['display_name']} ({m['params_string']}){loaded}{code_tag}{ctx_tag}")
 
         # Check current plan
         from plan_manager import PlanManager
@@ -805,13 +808,10 @@ def run_lmstudio_status(working_root=None):
 
     ctx = status.get("context", {})
     if ctx.get("changed"):
-        console.print(f"\n  [yellow]Context fix:[/yellow] {ctx['message']}")
-    elif "Context already" in ctx.get("message", ""):
+        console.print(f"\n  [yellow]Context fix applied:[/yellow] {ctx['message']}")
+        console.print("  [yellow](Reload models in LM Studio — select another model, then reselect it)[/yellow]")
+    elif ctx.get("message"):
         console.print(f"  [dim]Context: {ctx['message']}[/dim]")
-    else:
-        msg = ctx.get("message", "")
-        if msg:
-            console.print(f"\n  [yellow]Note:[/yellow] {msg}")
 
     console.print("")
 

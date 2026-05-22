@@ -17,6 +17,7 @@ LMSTUDIO_BASE = "http://localhost:1234"
 LMSTUDIO_API_V0 = f"{LMSTUDIO_BASE}/api/v0"
 LMSTUDIO_API_V1 = f"{LMSTUDIO_BASE}/api/v1"
 LMSTUDIO_SETTINGS = Path.home() / ".lmstudio" / "settings.json"
+LMSTUDIO_PER_MODEL_CONFIG = Path.home() / ".lmstudio" / ".internal" / "user-concrete-model-default-config"
 TARGET_CONTEXT_LENGTH = 32768
 
 GLOBAL_OPENCODE_CONFIG = Path.home() / ".config" / "opencode" / "opencode.jsonc"
@@ -89,44 +90,99 @@ def _model_id_to_display(model_id: str) -> str:
     return " ".join(cleaned).title() if cleaned else model_id
 
 
-def list_models() -> List[Dict]:
-    """
-    Fetch models from the LM Studio OpenAI-compatible endpoint (/v1/models).
-    Returns list of LLM models with metadata, sorted by params (desc).
-    """
+def _fetch_v0_models() -> List[Dict]:
+    """Fetch models from LM Studio v0 API, which includes loaded_context_length."""
     try:
-        req = urllib.request.Request(f"{LMSTUDIO_BASE}/v1/models", method="GET")
+        req = urllib.request.Request(f"{LMSTUDIO_API_V0}/models", method="GET")
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-    except Exception as e:
-        raise ConnectionError(f"Cannot reach LM Studio at {LMSTUDIO_BASE}: {e}")
+    except Exception:
+        return []
 
-    raw_models = data.get("data", [])
-    llm_models = []
-
-    for m in raw_models:
+    raw = data.get("data", [])
+    models = []
+    for m in raw:
+        if m.get("type") == "embeddings":
+            continue
         model_id = m.get("id", "")
         if not model_id:
             continue
+        loaded = m.get("state") == "loaded"
+        loaded_ctx = m.get("loaded_context_length", 0) if loaded else 0
+        max_ctx = m.get("max_context_length", 0)
+        models.append({
+            "id": model_id,
+            "display_name": _model_id_to_display(model_id),
+            "publisher": m.get("publisher", ""),
+            "arch": m.get("arch", ""),
+            "quantization": m.get("quantization", ""),
+            "loaded_context_length": loaded_ctx,
+            "max_context_length": max_ctx,
+            "state": m.get("state", "not-loaded"),
+            "is_loaded": loaded,
+            "capabilities": m.get("capabilities", []),
+        })
+    return models
 
+
+def list_models() -> List[Dict]:
+    """
+    Fetch models from LM Studio API. Prefers v0 for loaded_context_length,
+    falls back to v1 OpenAI-compatible endpoint.
+    Returns list of LLM models with metadata, sorted by params (desc).
+    """
+    v0_models = _fetch_v0_models()
+
+    if v0_models:
+        raw_models = v0_models
+    else:
+        # Fallback: fetch from v1 endpoint (OpenAI-compatible)
+        try:
+            req = urllib.request.Request(f"{LMSTUDIO_BASE}/v1/models", method="GET")
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        except Exception as e:
+            raise ConnectionError(f"Cannot reach LM Studio at {LMSTUDIO_BASE}: {e}")
+
+        raw_models = []
+        for m in data.get("data", []):
+            model_id = m.get("id", "")
+            if not model_id:
+                continue
+            raw_models.append({
+                "id": model_id,
+                "display_name": _model_id_to_display(model_id),
+                "publisher": m.get("owned_by", ""),
+                "arch": "",
+                "quantization": "",
+                "loaded_context_length": 0,
+                "max_context_length": 32768,
+                "state": "unknown",
+                "is_loaded": True,
+                "capabilities": [],
+            })
+
+    llm_models = []
+    for m in raw_models:
+        model_id = m["id"]
         params_str = ""
         params = _parse_params(model_id)
         if params > 0:
             params_str = f"{params}B"
 
-        display = _model_id_to_display(model_id)
+        ctx = m["loaded_context_length"] or m["max_context_length"] or 32768
 
         llm_models.append({
             "id": model_id,
-            "display_name": display,
-            "publisher": m.get("owned_by", ""),
-            "arch": "",
-            "quantization": "",
+            "display_name": m["display_name"],
+            "publisher": m["publisher"],
+            "arch": m["arch"],
+            "quantization": m["quantization"],
             "params_string": params_str,
             "params": params,
-            "max_context_length": 32768,
-            "state": "loaded",
-            "is_loaded": True,
+            "max_context_length": ctx,
+            "state": m["state"],
+            "is_loaded": m["is_loaded"],
             "is_code": bool(re.search(r'code|coder|instruct', model_id, re.IGNORECASE)),
         })
 
@@ -240,41 +296,103 @@ def ensure_global_lmstudio_config(installed: List[Dict]):
         f.write("\n")
 
 
+def _update_per_model_configs() -> List[str]:
+    """
+    Update per-model context configs in user-concrete-model-default-config/.
+    Returns list of files that were changed.
+    """
+    changed = []
+    if not LMSTUDIO_PER_MODEL_CONFIG.exists():
+        return changed
+
+    for config_file in LMSTUDIO_PER_MODEL_CONFIG.rglob("*.json"):
+        try:
+            with open(config_file, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+
+        fields = cfg.get("load", {}).get("fields", [])
+        updated = False
+        for field in fields:
+            if field.get("key") == "llm.load.contextLength":
+                val = field.get("value", 0)
+                if val < TARGET_CONTEXT_LENGTH:
+                    field["value"] = TARGET_CONTEXT_LENGTH
+                    updated = True
+                break
+        else:
+            key = "llm.load.contextLength"
+            if not any(f.get("key") == key for f in fields):
+                fields.append({"key": key, "value": TARGET_CONTEXT_LENGTH})
+                if "load" not in cfg:
+                    cfg["load"] = {}
+                cfg["load"]["fields"] = fields
+                updated = True
+
+        if updated:
+            try:
+                with open(config_file, "w", encoding="utf-8") as f:
+                    json.dump(cfg, f, indent=2, ensure_ascii=False)
+                    f.write("\n")
+                changed.append(config_file.name)
+            except OSError:
+                continue
+
+    return changed
+
+
 def ensure_lmstudio_context_length() -> Dict:
     """
-    Update LM Studio's defaultContextLength to 32768 so models load
-    with sufficient context for OpenCode prompts.
-    Returns status dict with 'changed' (bool) and 'message' (str).
+    Update LM Studio's defaultContextLength (global + per-model) to 32768
+    so models load with sufficient context for OpenCode prompts.
+    Returns status dict with 'changed' (bool), 'message' (str), and 'updated_models' (list).
     """
-    if not LMSTUDIO_SETTINGS.exists():
-        return {"changed": False, "message": "LM Studio settings.json not found"}
+    changed_global = False
+    messages = []
 
-    try:
-        with open(LMSTUDIO_SETTINGS, "r", encoding="utf-8") as f:
-            settings = json.load(f)
-    except (json.JSONDecodeError, OSError) as e:
-        return {"changed": False, "message": f"Cannot read LM Studio settings: {e}"}
+    # 1. Update global settings.json
+    if LMSTUDIO_SETTINGS.exists():
+        try:
+            with open(LMSTUDIO_SETTINGS, "r", encoding="utf-8") as f:
+                settings = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            return {"changed": False, "message": f"Cannot read LM Studio settings: {e}", "updated_models": []}
 
-    current = settings.get("defaultContextLength", {}).get("value", 0)
-    if current >= TARGET_CONTEXT_LENGTH:
-        return {"changed": False, "message": f"Context already {current} (>= {TARGET_CONTEXT_LENGTH})"}
+        current = settings.get("defaultContextLength", {}).get("value", 0)
+        if current < TARGET_CONTEXT_LENGTH:
+            settings["defaultContextLength"] = {
+                "type": "custom",
+                "value": TARGET_CONTEXT_LENGTH,
+            }
+            try:
+                with open(LMSTUDIO_SETTINGS, "w", encoding="utf-8") as f:
+                    json.dump(settings, f, indent=2, ensure_ascii=False)
+                    f.write("\n")
+                messages.append(f"Global defaultContextLength: {current} -> {TARGET_CONTEXT_LENGTH}")
+                changed_global = True
+            except OSError as e:
+                messages.append(f"Cannot write settings.json: {e}")
+        else:
+            messages.append(f"Global context already {current}")
 
-    settings["defaultContextLength"] = {
-        "type": "custom",
-        "value": TARGET_CONTEXT_LENGTH,
-    }
+    # 2. Update per-model configs
+    changed_models = _update_per_model_configs()
+    if changed_models:
+        changed_global = True
+        messages.append(f"Per-model configs updated: {', '.join(changed_models)}")
 
-    try:
-        with open(LMSTUDIO_SETTINGS, "w", encoding="utf-8") as f:
-            json.dump(settings, f, indent=2, ensure_ascii=False)
-            f.write("\n")
-    except OSError as e:
-        return {"changed": False, "message": f"Cannot write LM Studio settings: {e}"}
+    if not changed_global:
+        return {
+            "changed": False,
+            "message": "; ".join(messages),
+            "updated_models": [],
+        }
 
     return {
         "changed": True,
-        "message": f"Updated defaultContextLength from {current} to {TARGET_CONTEXT_LENGTH}. "
-                   "Reload the model in LM Studio (select a different model, then reselect it) to apply the new context.",
+        "message": "; ".join(messages),
+        "updated_models": changed_models,
     }
 
 
@@ -288,9 +406,7 @@ def _rmtree(path: Path):
 
 def _install_agents_to_dir(target_dir: Path, assignments: List[Tuple[str, Dict]], backup_dir: Path) -> List[Dict]:
     """Backup existing agents in target_dir, then write LM Studio agents."""
-    if target_dir.exists():
-        if backup_dir.exists():
-            _rmtree(backup_dir)
+    if target_dir.exists() and not backup_dir.exists():
         shutil.copytree(target_dir, backup_dir)
 
     target_dir.mkdir(parents=True, exist_ok=True)
