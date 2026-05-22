@@ -2,7 +2,7 @@
 name: code-analyst
 description: Senior software engineer — implements code
 mode: subagent
-model: lmstudio/google/gemma-4-e2b
+model: lmstudio/mistralai/ministral-3-3b
 temperature: 0.2
 permission:
   edit: allow
@@ -11,4 +11,4 @@ permission:
   task: deny
 ---
 
-Senior software engineer — implements code. Running locally via LM Studio (Google/Gemma 4 E2B, 2.0B).
+Senior software engineer — implements code. Running locally via LM Studio (Mistralai/Ministral 3 3B, 3.0B).

@@ -16,6 +16,8 @@ from typing import List, Dict, Optional, Tuple
 LMSTUDIO_BASE = "http://localhost:1234"
 LMSTUDIO_API_V0 = f"{LMSTUDIO_BASE}/api/v0"
 LMSTUDIO_API_V1 = f"{LMSTUDIO_BASE}/api/v1"
+LMSTUDIO_SETTINGS = Path.home() / ".lmstudio" / "settings.json"
+TARGET_CONTEXT_LENGTH = 32768
 
 GLOBAL_OPENCODE_CONFIG = Path.home() / ".config" / "opencode" / "opencode.jsonc"
 GLOBAL_AGENTS_DIR = Path.home() / ".opencode" / "agents"
@@ -238,6 +240,44 @@ def ensure_global_lmstudio_config(installed: List[Dict]):
         f.write("\n")
 
 
+def ensure_lmstudio_context_length() -> Dict:
+    """
+    Update LM Studio's defaultContextLength to 32768 so models load
+    with sufficient context for OpenCode prompts.
+    Returns status dict with 'changed' (bool) and 'message' (str).
+    """
+    if not LMSTUDIO_SETTINGS.exists():
+        return {"changed": False, "message": "LM Studio settings.json not found"}
+
+    try:
+        with open(LMSTUDIO_SETTINGS, "r", encoding="utf-8") as f:
+            settings = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        return {"changed": False, "message": f"Cannot read LM Studio settings: {e}"}
+
+    current = settings.get("defaultContextLength", {}).get("value", 0)
+    if current >= TARGET_CONTEXT_LENGTH:
+        return {"changed": False, "message": f"Context already {current} (>= {TARGET_CONTEXT_LENGTH})"}
+
+    settings["defaultContextLength"] = {
+        "type": "custom",
+        "value": TARGET_CONTEXT_LENGTH,
+    }
+
+    try:
+        with open(LMSTUDIO_SETTINGS, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+    except OSError as e:
+        return {"changed": False, "message": f"Cannot write LM Studio settings: {e}"}
+
+    return {
+        "changed": True,
+        "message": f"Updated defaultContextLength from {current} to {TARGET_CONTEXT_LENGTH}. "
+                   "Reload the model in LM Studio (select a different model, then reselect it) to apply the new context.",
+    }
+
+
 def _rmtree(path: Path):
     """Remove a directory tree, handling Windows permission errors."""
     def handle_error(func, fpath, exc_info):
@@ -385,11 +425,16 @@ def install_lmstudio_agents(project_root: Path, models: List[Dict], manual: bool
     # Update global OpenCode config with LM Studio provider
     ensure_global_lmstudio_config(installed)
 
-    return {
+    # Ensure LM Studio loads models with sufficient context
+    ctx_result = ensure_lmstudio_context_length()
+
+    result = {
         "installed": installed,
         "count": len(installed),
         "backup_dir": str(proj_backup),
+        "context": ctx_result,
     }
+    return result
 
 
 def _manual_assign(models: List[Dict]) -> List[Tuple[str, Dict]]:
@@ -457,7 +502,7 @@ def reset_to_go(project_root: Path) -> Dict:
 
 
 def get_status() -> Dict:
-    """Get LM Studio status: running, models, assignments."""
+    """Get LM Studio status: running, models, assignments, context."""
     running = check_lmstudio_running()
     models = []
     error = None
@@ -468,9 +513,12 @@ def get_status() -> Dict:
         except Exception as e:
             error = str(e)
 
+    ctx = ensure_lmstudio_context_length()
+
     return {
         "running": running,
         "model_count": len(models),
         "models": models,
         "error": error,
+        "context": ctx,
     }

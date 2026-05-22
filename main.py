@@ -742,6 +742,12 @@ def run_install_lmstudio(working_root=None, manual=False):
     console.print(f"\n[dim]Go agents backed up to: {result['backup_dir']}[/dim]")
     console.print("[dim]Run 'python main.py --reset-go' to restore Go plan.[/dim]")
 
+    ctx = result.get("context", {})
+    if ctx.get("changed"):
+        console.print(f"\n[yellow]Context fix applied:[/yellow] {ctx['message']}")
+    elif "Context already" not in ctx.get("message", ""):
+        console.print(f"\n[yellow]Note:[/yellow] {ctx['message']}")
+
 
 def run_lmstudio_status(working_root=None):
     """Show LM Studio server status and model assignments."""
@@ -796,6 +802,16 @@ def run_lmstudio_status(working_root=None):
 
     if status["error"]:
         console.print(f"\n  [red]Error: {status['error']}[/red]")
+
+    ctx = status.get("context", {})
+    if ctx.get("changed"):
+        console.print(f"\n  [yellow]Context fix:[/yellow] {ctx['message']}")
+    elif "Context already" in ctx.get("message", ""):
+        console.print(f"  [dim]Context: {ctx['message']}[/dim]")
+    else:
+        msg = ctx.get("message", "")
+        if msg:
+            console.print(f"\n  [yellow]Note:[/yellow] {msg}")
 
     console.print("")
 
