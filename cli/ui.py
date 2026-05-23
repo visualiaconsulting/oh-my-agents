@@ -5,6 +5,9 @@ from rich.table import Table
 from rich.text import Text
 from rich.theme import Theme
 from rich.align import Align
+from rich.columns import Columns
+from rich.layout import Layout
+from rich.box import ROUNDED, MINIMAL, HEAVY_HEAD
 
 custom_theme = Theme({
     "info": "cyan",
@@ -13,24 +16,28 @@ custom_theme = Theme({
     "success": "bold green",
     "header": "bold magenta",
     "accent": "bold cyan",
+    "plan_active": "bold green",
+    "plan_inactive": "dim white",
+    "label": "cyan",
 })
 
 console = Console(theme=custom_theme, force_terminal=True, legacy_windows=False)
+
 
 def print_header():
     ascii_art = """
     ██████╗ ██████╗ ███████╗███╗   ██╗ ██████╗  ██████╗ ██████╗ ███████╗
     ██╔══██╗██╔══██╗██╔════╝████╗  ██║██╔════╝ ██╔═══██╗██╔══██╗██╔════╝
-    ██║  ██║██████╔╝█████╗  ██╔██╗ ██║██║      ██║   ██║██║  ██║█████╗  
-    ██║  ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██║      ██║   ██║██║  ██║██╔══╝  
+    ██║  ██║██████╔╝█████╗  ██╔██╗ ██║██║      ██║   ██║██║  ██║█████╗
+    ██║  ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██║      ██║   ██║██║  ██║██╔══╝
     ██████╔╝██║     ███████╗██║ ╚████║╚██████╗ ╚██████╔╝██████╔╝███████╗
-    ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝ ╚═════╝  ╚═════╝ ╚═════╝ ╚══════╝
+    ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝ ╚═════╝  ╚═════╝ ╚═════╝ ╚═════╝
     """
     console.print(Align.center(f"[accent]{ascii_art}[/accent]"))
 
-    title = Text("🤖 oh-my-agents", style="bold cyan")
+    title = Text("oh-my-agents", style="bold cyan")
     subtitle = Text("Multi-Agent Orchestration Framework", style="dim")
-    credit = Text("A product of VisualIA Consulting · Licensed under MIT", style="dim italic")
+    credit = Text("A product of VisualIA Consulting - Licensed under MIT", style="dim italic")
 
     panel_content = Align.center(
         Text.assemble(title, "\n", subtitle, "\n\n", credit)
@@ -42,6 +49,53 @@ def print_header():
         padding=(1, 2),
     )
     console.print(panel)
+
+
+def print_dashboard_header(current_plan: str, agent_count: int, plan_display: str):
+    """Compact status bar showing current plan and agent count."""
+    console.print()
+    status = f"[bold cyan]Current:[/bold cyan] {plan_display}   [bold cyan]Agents:[/bold cyan] {agent_count}   [bold cyan]Plan:[/bold cyan] {current_plan}"
+    console.print(Panel(status, border_style="accent", padding=(1, 2), box=HEAVY_HEAD))
+    console.print()
+
+
+def print_plan_selector(current_plan: str, plans: dict):
+    """Display an interactive-style plan selector panel.
+
+    plans: dict of {plan_key: {name, description, status_label}}
+    """
+    rows = []
+    for key, info in plans.items():
+        name = info["name"]
+        desc = info["description"]
+        status = info["status_label"]
+        if key == current_plan:
+            line = f"  [plan_active]{'■'} {name:<30} ACTIVE[/plan_active]"
+        else:
+            line = f"  [plan_inactive]{'□'} {name:<30}[/plan_inactive] [yellow]{status}[/yellow]"
+        rows.append(line)
+        rows.append(f"     [dim]{desc}[/dim]")
+        rows.append("")
+
+    text = Text.from_markup("\n".join(rows))
+    panel = Panel(text, title="[bold]Select your AI Provider[/bold]", border_style="accent", box=ROUNDED, padding=(1, 2))
+    console.print(panel)
+    console.print()
+
+
+def print_simple_menu(title: str, items: list):
+    """Print a compact menu panel.
+
+    items: list of (key, label) tuples. key is the number/letter, label is the text.
+    """
+    lines = []
+    for key, label in items:
+        lines.append(f"  [accent][{key}][/accent] {label}")
+    text = Text.from_markup("\n".join(lines))
+    panel = Panel(text, title=f"[bold]{title}[/bold]", border_style="dim", box=MINIMAL, padding=(1, 2))
+    console.print(panel)
+    console.print()
+
 
 def print_agent_status(agents_data):
     table = Table(title="Active Agents", border_style="dim")
@@ -59,6 +113,7 @@ def print_agent_status(agents_data):
         )
 
     console.print(table)
+
 
 def print_session_list(sessions):
     table = Table(title="Session History", border_style="dim")
@@ -92,6 +147,7 @@ def print_session_list(sessions):
 
     console.print(table)
 
+
 def print_session_detail(session):
     from utils import truncate_text
 
@@ -114,7 +170,7 @@ def print_session_detail(session):
     if errors:
         console.print(f"  [bold red]Errors ({len(errors)}):[/bold red]")
         for err in errors[:5]:
-            console.print(f"    [red]•[/red] {truncate_text(err, 100)}")
+            console.print(f"    [red]·[/red] {truncate_text(err, 100)}")
         if len(errors) > 5:
             console.print(f"    [dim]... and {len(errors) - 5} more[/dim]")
         console.print("")
@@ -123,17 +179,18 @@ def print_session_detail(session):
     if pending:
         console.print(f"  [bold yellow]Pending Tasks:[/bold yellow]")
         for task in pending:
-            console.print(f"    [yellow]•[/yellow] {truncate_text(task, 100)}")
+            console.print(f"    [yellow]·[/yellow] {truncate_text(task, 100)}")
         console.print("")
 
     files = session.get("files_changed", [])
     if files:
         console.print(f"  [bold]Files Changed ({len(files)}):[/bold]")
         for f in files[:10]:
-            console.print(f"    [dim]•[/dim] {f}")
+            console.print(f"    [dim]·[/dim] {f}")
         if len(files) > 10:
             console.print(f"    [dim]... and {len(files) - 10} more[/dim]")
         console.print("")
+
 
 def print_skills_list(skills):
     table = Table(title="Installed Skills", border_style="dim")
@@ -153,6 +210,7 @@ def print_skills_list(skills):
 
     console.print(table)
 
+
 def print_skills_search(results, query):
     table = Table(title=f"Skills Search: '{query}'", border_style="dim")
     table.add_column("#", style="accent")
@@ -171,16 +229,19 @@ def print_skills_search(results, query):
         if len(desc) > 50:
             desc = desc[:47] + "..."
 
-        table.add_row(str(i), name, desc or "[dim]—[/dim]", repo)
+        table.add_row(str(i), name, desc or "[dim]--[/dim]", repo)
 
     console.print(table)
     console.print("\n[dim]Install with: python main.py --skills-install owner/repo/name[/dim]")
 
+
 def print_step(message):
     console.print(Panel(message, border_style="info", expand=False))
 
+
 def print_success(message):
     console.print(f"[success]OK[/success] {message}")
+
 
 def print_error(message):
     console.print(f"[error]X[/error] {message}")

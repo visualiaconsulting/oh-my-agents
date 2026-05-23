@@ -1,6 +1,6 @@
-# 📖 Manual de Usuario — oh-my-agents v1.5.0
+# 📖 Manual de Usuario — oh-my-agents v1.8.0
 
-> Guía completa para instalar, configurar y usar el sistema de agentes multi-especialista en OpenCode. Incluye MCP, skills automáticas, actualizaciones y desinstalación.
+> Guía completa para instalar, configurar y usar el sistema de agentes multi-especialista en OpenCode. Incluye dashboard de proveedores, MCP, skills, actualizaciones y desinstalación.
 
 ---
 
@@ -699,49 +699,53 @@ powershell -File setup.ps1 --uninstall
 
 ## 9. Referencia CLI
 
-### Todos los Argumentos
+### Argumentos CLI (v1.8.0)
 
-| Argumento | Descripción | Ejemplo |
-|-----------|-------------|---------|
-| `--setup` | Fuerza el wizard de configuración | `python main.py --setup` |
-| `--doctor` | Diagnóstico completo del entorno | `python main.py --doctor` |
-| `--version` | Muestra la versión actual | `python main.py --version` |
-| `--check-updates` | Busca nuevas versiones en GitHub | `python main.py --check-updates` |
-| `--update` | Actualiza oh-my-agents a la última versión | `python main.py --update` |
-| `--install-global` | Copia agentes a `~/.opencode/agents/` | `python main.py --install-global` |
-| `--uninstall` | Elimina instalación global interactivamente | `python main.py --uninstall` |
-| `--dir DIR` | Define explícitamente el WORKING_ROOT | `python main.py --dir C:\proyecto` |
-| `--sessions` | Lista sesiones grabadas | `python main.py --sessions` |
-| `--session <id>` | Detalle de sesión específica | `python main.py --session a3f8b2c1` |
-| `--session-status` | Resumen de la última sesión | `python main.py --session-status` |
-| `--summarize` | Escanea logs y guarda sesión | `python main.py --summarize` |
-| `--skills` | Lista skills instaladas | `python main.py --skills` |
-| `--skills-search <q>` | Busca skills en skills.sh | `python main.py --skills-search database` |
-| `--skills-install <id>` | Instala skill desde skills.sh | `python main.py --skills-install owner/repo/name` |
-| `--skills-remove <name>` | Remueve skill instalada | `python main.py --skills-remove neon-postgres` |
-| `--skills-recommend` | Analiza proyecto y recomienda skills | `python main.py --skills-recommend` |
-| `--skills-auto` | Instala skills recomendadas sin preguntar | `python main.py --skills-auto` |
-| `--mcp-add <template>` | Añade servidor MCP (filesystem, sqlite, github) | `python main.py --mcp-add sqlite` |
-| `--mcp-status` | Muestra servidores MCP y herramientas disponibles | `python main.py --mcp-status` |
+El CLI se ha simplificado de ~30 flags a ~10. La funcionalidad eliminada está disponible en el dashboard interactivo.
 
-### Menú Interactivo
+| Argumento | Descripción |
+|-----------|-------------|
+| `--plan NAME` | Cambiar a proveedor (`go`, `lmstudio`, `copilot`, `openrouter`) |
+| `--status` | Mostrar plan activo y estado de agentes |
+| `--doctor` | Diagnóstico completo del entorno |
+| `--setup` | Forzar wizard de configuración (Go plan) |
+| `--install-global` | Copiar agentes a `~/.opencode/agents/` |
+| `--uninstall` | Eliminar instalación global interactivamente |
+| `--version` | Mostrar versión actual |
+| `--check-updates` | Buscar nuevas versiones en GitHub |
+| `--update` | Actualizar oh-my-agents a la última versión |
+| `--dir DIR` | Definir explícitamente el WORKING_ROOT |
 
-Si ejecutas `python main.py` sin argumentos (con agentes ya configurados):
+### Dashboard Interactivo
+
+Ejecutar `python main.py` sin argumentos abre el dashboard con selector de proveedores:
 
 ```
 ? What would you like to do?
-  ❯ View agent status
-    Run setup wizard
+  ❯ Switch to Go plan
+    Switch to LM Studio
+    Switch to GitHub Copilot
+    Switch to OpenRouter
+    ---
+    View agent status
     Run diagnostics
-    Check for updates
-    MCP status
-    Recommend skills
-    Install globally
-    Uninstall globally
-    View sessions
-    View skills
+    Tools & advanced
     Exit
 ```
+
+Seleccionar un plan lo activa y muestra un menú contextual con opciones como Status, Diagnostics, Sessions, Skills/MCP, Updates.
+
+### Flags Eliminados (accesibles vía dashboard)
+
+Los siguientes flags ya no existen como argumentos CLI. Su funcionalidad está disponible en los submenús del dashboard:
+
+- `--sessions`, `--session`, `--session-status`, `--summarize`
+- `--skills`, `--skills-search`, `--skills-install`, `--skills-remove`
+- `--skills-recommend`, `--skills-auto`
+- `--mcp-add`, `--mcp-status`
+- `--install-lmstudio`, `--install-lmstudio-manual`, `--lmstudio-status`, `--reset-go`
+- `--auto-enable`, `--auto-disable`
+- `--project-status`, `--project-health`, `--continue`, `--list-tasks`, `--complete-task`
 
 ---
 
@@ -749,30 +753,28 @@ Si ejecutas `python main.py` sin argumentos (con agentes ya configurados):
 
 ### ¿Qué es?
 
-El PlanManager detecta automáticamente qué plan de OpenCode estás usando y asigna los modelos óptimos a cada agente.
+El PlanManager soporta **4 proveedores** seleccionables explícitamente. No hay detección automática — el usuario elige el plan vía dashboard o flag `--plan`.
 
 ### Planes Soportados
 
-| Plan | Detección | Orchestrator |
-|------|-----------|-------------|
-| **Go** (default) | Default o `OPENCODE_PLAN=go` | `opencode-go/kimi-k2.6` |
-| **Zen** | `GITHUB_TOKEN` o `COPILOT_TOKEN` | `opencode/claude-sonnet-4.5` |
-| **API** | `ANTHROPIC_API_KEY` | `anthropic/claude-sonnet-4` |
-| **Enterprise** | `OPENCODE_PLAN=enterprise` | `opencode-go/kimi-k2.6` |
-| **OpenRouter** | `OPENROUTER_API_KEY` | `openrouter/anthropic/claude-sonnet-4.5` |
-| **Copilot** | GitHub Copilot activo | `copilot/claude-sonnet-4` |
-| **Ollama** | `OLLAMA_HOST` | `ollama/llama3.3:70b` |
+| Plan | Flag | Orchestrator Model | Descripción |
+|------|------|-------------------|-------------|
+| **Go** (default) | `--plan go` | `opencode-go/deepseek-v4-pro` | 5000 créditos/día en OpenCode Go |
+| **LM Studio** | `--plan lmstudio` | `lmstudio/<detectado>` | Inferencia local ilimitada |
+| **GitHub Copilot** | `--plan copilot` | `copilot/claude-sonnet-4` | Modelos vía suscripción Copilot |
+| **OpenRouter** | `--plan openrouter` | `openrouter/anthropic/claude-sonnet-4` | Bring-your-own-API-key |
 
 ### Cambiar de Plan
 
 ```powershell
-# Forzar plan Go
-$env:OPENCODE_PLAN="go"
-python main.py --doctor
+# Dashboard interactivo
+python main.py
 
-# Forzar plan API con Anthropic
-$env:ANTHROPIC_API_KEY="sk-ant-..."
-python main.py --doctor
+# Directo por flag
+python main.py --plan go
+python main.py --plan lmstudio
+python main.py --plan copilot
+python main.py --plan openrouter
 ```
 
 ---

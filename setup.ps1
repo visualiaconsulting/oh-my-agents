@@ -198,13 +198,11 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Run: opencode --agent orchestrator" -ForegroundColor White
 Write-Host ""
-Write-Host "  Session management:" -ForegroundColor Cyan
-Write-Host "    python main.py --summarize      Save session after OpenCode run" -ForegroundColor White
-Write-Host "    python main.py --sessions         View session history" -ForegroundColor White
-Write-Host "    python main.py --session-status   Last session summary" -ForegroundColor White
-Write-Host ""
-Write-Host "  Skills (from skills.sh):" -ForegroundColor Cyan
-Write-Host "    python main.py --skills-search <q>  Search skills" -ForegroundColor White
-Write-Host "    python main.py --skills-install <id> Install a skill" -ForegroundColor White
-Write-Host "    python main.py --skills               List installed skills" -ForegroundColor White
+Write-Host "  Interactive dashboard:" -ForegroundColor Cyan
+Write-Host "    python main.py                     Open dashboard and select a provider" -ForegroundColor White
+Write-Host "    python main.py --plan go           Switch to Go plan" -ForegroundColor White
+Write-Host "    python main.py --plan lmstudio     Switch to LM Studio (local models)" -ForegroundColor White
+Write-Host "    python main.py --plan copilot      Switch to GitHub Copilot" -ForegroundColor White
+Write-Host "    python main.py --plan openrouter   Switch to OpenRouter" -ForegroundColor White
+Write-Host "    python main.py --doctor            Run diagnostics" -ForegroundColor White
 Write-Host ""

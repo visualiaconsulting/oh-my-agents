@@ -215,6 +215,35 @@ Alternatively, download a model with a known-good template from the [Recommended
 
 ## 📝 Changelog
 
+### v1.8.0 — Dashboard-First CLI, Copilot & OpenRouter Plans (May 2026)
+
+**Dashboard-first interactive menu:**
+- Running `python main.py` shows a provider selector with 4 plans (Go, LM Studio, Copilot, OpenRouter)
+- Selecting a plan activates it and shows a contextual menu (Status, Diagnostics, Sessions, Skills/MCP)
+- Sessions, skills, and MCP tools are now in clean submenus, not top-level
+
+**CLI flags reduced from ~30 to ~10:**
+- Kept: `--plan`, `--status`, `--doctor`, `--setup`, `--install-global`, `--uninstall`, `--version`, `--check-updates`, `--update`, `--dir`
+- Removed flags accessible via dashboard submenus: sessions, skills, MCP, lmstudio, project, auto-session flags
+
+**New plan_manager.py features:**
+- `copilot` and `openrouter` plans with model mappings
+- `get_plan_display_name()`, `get_plan_description()`, `save_plan()` methods
+- Model selection wizard for new plans
+
+**Files modified:**
+- `main.py` — Dashboard-first `show_plan_selector()`, `show_plan_contextual_menu()`, `_pick_models_for_plan()` for Copilot/OpenRouter
+- `cli/ui.py` — `print_dashboard_header()`, `print_plan_selector()`, `print_simple_menu()`
+- `plan_manager.py` — 2 new plans, display names, descriptions, save/load
+- `README.md` — Updated CLI docs, plans, changelog
+- `.opencode/context.md` — Updated provider docs, removed old flags
+- `docs/USER_MANUAL.md` — Updated for v1.8.0
+- `continuity.py` — Removed old flag reference
+- `wrappers/opencode_logger.py` — Removed old flag reference
+- `setup.ps1` — Updated examples to dashboard
+
+**Tests:** 168 passing (unchanged)
+
 ### v1.7.3 — Context Fix & LM Studio Documentation (May 2026)
 
 **Bug fix — Low model context causing `n_keep >= n_ctx` error:**
@@ -709,35 +738,23 @@ print(f"Available models: {pm.get_available_models()}")
 
 ### Supported Plans
 
-| Plan | Detection Method | Orchestrator Model |
-|------|---------------------|--------------------|
-| **Go** (default) | Default or `OPENCODE_PLAN=go` | `opencode-go/deepseek-v4-pro` |
-| **Zen** | `GITHUB_TOKEN` or `COPILOT_TOKEN` | `opencode/claude-sonnet-4.5` |
-| **API** | `ANTHROPIC_API_KEY` | `anthropic/claude-sonnet-4` (configurable) |
-| **Enterprise** | `OPENCODE_PLAN=enterprise` | `opencode-go/deepseek-v4-pro` (configurable) |
-| **OpenRouter** | `OPENROUTER_API_KEY` | `openrouter/deepseek/deepseek-v3` (configurable) |
-| **Copilot** | Active GitHub Copilot | `copilot/claude-sonnet-4` |
-| **Ollama** | `OLLAMA_HOST` or Ollama running | `ollama/llama3.3:70b` (configurable) |
+| Plan | How to Activate | Orchestrator Model |
+|------|-----------------|-------------------|
+| **Go** (default) | `python main.py --plan go` or dashboard | `opencode-go/deepseek-v4-pro` |
+| **LM Studio** | `python main.py --plan lmstudio` or dashboard | `lmstudio/<detected-model>` |
+| **GitHub Copilot** | `python main.py --plan copilot` or dashboard | `copilot/claude-sonnet-4` |
+| **OpenRouter** | `python main.py --plan openrouter` or dashboard | `openrouter/anthropic/claude-sonnet-4` |
 
 ---
 
-## 🚀 Suggested Next Steps
+## Suggested Next Steps
 
-1. **Run tests locally:** `pytest tests/ -v` (168 tests, all current features covered)
-2. **Connectivity Validation:** Run `python main.py` to verify that the PlanManager correctly detects the environment
-3. **Delegation Tests:** Use `opencode --agent orchestrator` with a complex task to validate interaction between agents (works from any folder after global install)
+1. **Run tests:** `pytest tests/ -v` (168 passing)
+2. **Open dashboard:** Run `python main.py` and explore all 4 providers
+3. **Try plans:** `python main.py --plan go`, `--plan lmstudio`, `--plan copilot`, `--plan openrouter`
 4. **Model Health Check:** Run `python main.py --doctor` to verify all agent model IDs are valid
-5. **Session Continuity:** Run `python main.py --summarize` after an OpenCode session to save the session record
-6. **Skills Exploration:** Run `python main.py --skills-search database` to find relevant skills for your project
-7. **Uninstall Test:** Run `python main.py --uninstall` to verify the interactive removal workflow works correctly (reinstall with `python main.py --install-global`)
-8. **Update test:** Run `python main.py --check-updates` to verify the update system can reach GitHub
-9. **Test project DB:** Run `python main.py --project-status` to verify project continuity features
-10. **Enable auto-session:** Run `python main.py --auto-enable` to enable automatic session saving
-11. **View continuity:** Run `python main.py --continue` to see re-entry context
-12. **Enable auto-session:** Run `python main.py --auto-enable` to enable automatic session saving
-13. **LM Studio test:** Run `python main.py --lmstudio-status` to verify local model detection
-14. **LM Studio install:** Run `python main.py --install-lmstudio` to switch to local models
-15. **LM Studio hardware check:** Run `python main.py --lmstudio-status` to see which tier your setup fits
+5. **Dashboard exploration:** from the plan menu, explore Sessions, Skills/MCP, and Updates
+6. **Uninstall test:** `python main.py --uninstall` (reinstall with `--install-global`)
 
 ---
 

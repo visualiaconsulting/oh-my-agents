@@ -4,11 +4,6 @@ import shutil
 from pathlib import Path
 
 from update_manager import check_for_updates, run_update
-from mcp_client import MCPClient
-from mcp_config import MCPConfig, MCP_SERVER_TEMPLATES
-from skill_recommender import SkillRecommender
-from continuity import ContinuityManager
-from project_db import ProjectDB
 
 SYSTEM_ROOT = Path(__file__).parent.resolve()
 from plan_fallback import FallbackManager
@@ -70,7 +65,7 @@ def run_doctor(working_root=None):
     if check_opencode_cli():
         console.print(f"  [green]OK[/green] OpenCode CLI available")
     else:
-        console.print(f"  [yellow]⚠[/yellow] OpenCode CLI not found")
+        console.print(f"  [yellow]![/yellow] OpenCode CLI not found")
         console.print(f"    Install from: [bold]https://opencode.ai[/bold]")
 
     from plan_manager import PlanManager
@@ -94,11 +89,11 @@ def run_doctor(working_root=None):
         if issues:
             console.print()
             for issue in issues:
-                icon = "[red]X[/red]" if issue["severity"] == "error" else "[yellow]⚠[/yellow]"
+                icon = "[red]X[/red]" if issue["severity"] == "error" else "[yellow]![/yellow]"
                 console.print(f"  {icon} {issue['message']}")
             console.print()
     else:
-        console.print(f"  [yellow]⚠[/yellow] No agent configuration found")
+        console.print(f"  [yellow]![/yellow] No agent configuration found")
 
     from session_manager import SessionManager
     sm = SessionManager(project_root=working_root)
@@ -106,7 +101,7 @@ def run_doctor(working_root=None):
     if sessions:
         console.print(f"  [green]OK[/green] Session history active ({len(sm.list_sessions())} sessions)")
     else:
-        console.print(f"  [dim]ℹ[/dim] No sessions recorded yet")
+        console.print(f"  [dim]i[/dim] No sessions recorded yet")
 
     from skill_registry import SkillRegistry
     sr = SkillRegistry(project_root=working_root)
@@ -114,17 +109,20 @@ def run_doctor(working_root=None):
     if skills:
         console.print(f"  [green]OK[/green] Skills installed: {len(skills)}")
     else:
-        console.print(f"  [dim]ℹ[/dim] No skills installed")
+        console.print(f"  [dim]i[/dim] No skills installed")
 
     console.print("\n[bold cyan]==============================[/bold cyan]\n")
 
 
-def load_agents():
+def load_agents(working_root=None):
     """Load agent definitions from the best available source."""
     import yaml
-    from utils import find_agent_source, validate_agent_directory
+    from utils import find_agent_source, validate_agent_directory, resolve_working_root
 
-    agent_dir = find_agent_source()
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    agent_dir = find_agent_source(working_root)
     agents = []
     if not agent_dir:
         return agents
@@ -132,7 +130,6 @@ def load_agents():
     issues = validate_agent_directory(agent_dir)
     errors = [i for i in issues if i["severity"] == "error"]
     if errors:
-        import sys
         print("[WARNING] Agent directory validation errors:", file=sys.stderr)
         for e in errors:
             print(f"  {e['message']}", file=sys.stderr)
@@ -201,7 +198,6 @@ def run_sessions_list(working_root=None):
 
     if not sessions:
         console.print("[yellow]No sessions recorded yet.[/yellow]")
-        console.print("[dim]Sessions are created when you run --summarize after an OpenCode session.[/dim]")
         return
 
     print_session_list(sessions)
@@ -264,8 +260,6 @@ def run_summarize(working_root=None):
         for p in get_logs_dir_candidates(working_root):
             console.print(f"  [dim]- {p}[/dim]")
         console.print("[dim]Make sure OpenCode has been run in this project first.[/dim]")
-        console.print("[dim]Tip: Run `python main.py --enable-logging` to install a wrapper that captures opencode output automatically.[/dim]")
-        console.print("[dim]     Or use `python main.py --manual-session` to paste a session manually.[/dim]")
         return
 
     session_id = sm.save_session(
@@ -284,128 +278,6 @@ def run_summarize(working_root=None):
     console.print(f"  [dim]Context updated in .opencode/context.md[/dim]")
 
 
-def run_enable_logging():
-    """Install the opencode session logger wrapper to ~/.opencode/bin/."""
-    from cli.ui import console, print_success, print_error
-
-    source_dir = SYSTEM_ROOT / "wrappers"
-    target_dir = Path.home() / ".opencode" / "bin"
-
-    wrapper_files = [
-        "opencode_logger.py",
-        "opencode-logger.bat",
-        "opencode-logger",
-    ]
-
-    if not source_dir.exists():
-        print_error(f"Wrapper source directory not found: {source_dir}")
-        return False
-
-    missing = [f for f in wrapper_files if not (source_dir / f).exists()]
-    if missing:
-        print_error(f"Missing wrapper files: {', '.join(missing)}")
-        return False
-
-    target_dir.mkdir(parents=True, exist_ok=True)
-
-    for filename in wrapper_files:
-        src = source_dir / filename
-        dst = target_dir / filename
-        shutil.copy2(src, dst)
-        console.print(f"  [green]OK[/green] {filename}")
-
-    # Make the Unix shim executable
-    if sys.platform != "win32":
-        unix_shim = target_dir / "opencode-logger"
-        try:
-            unix_shim.chmod(0o755)
-        except OSError:
-            pass
-
-    print_success(f"Logger wrapper installed to {target_dir}")
-
-    console.print("")
-    if sys.platform == "win32":
-        console.print("[bold cyan]To use the logger:[/bold cyan]")
-        console.print(f"  Add [bold]{target_dir}[/bold] to your PATH (before the real opencode location).")
-        console.print("")
-        console.print("  Then use [bold]opencode-logger[/bold] instead of [bold]opencode[/bold]:")
-        console.print("    [dim]opencode-logger --agent orchestrator[/dim]")
-    else:
-        console.print("[bold cyan]To use the logger:[/bold cyan]")
-        console.print(f"  Add [bold]{target_dir}[/bold] to your PATH (before the real opencode location):")
-        console.print(f"    [dim]export PATH=\"{target_dir}:$PATH\"[/dim]")
-        console.print("")
-        console.print("  Then use [bold]opencode-logger[/bold] instead of [bold]opencode[/bold]:")
-        console.print("    [dim]opencode-logger --agent orchestrator[/dim]")
-
-    console.print("")
-    console.print("[dim]The first time you run it, it will save logs to .opencode/logs/ in your project folder.[/dim]")
-    return True
-
-
-def run_manual_session(working_root=None):
-    """Interactively record a session from user-pasted content."""
-    from cli.ui import console, print_success, print_error
-    from session_manager import SessionManager
-    from utils import resolve_working_root
-    import questionary
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    console.print("\n[bold cyan]=== Manual Session Recording ===[/bold cyan]\n")
-
-    agent = questionary.text(
-        "Agent name used:",
-        default="orchestrator"
-    ).ask()
-    if agent is None:
-        console.print("[dim]Cancelled.[/dim]")
-        return
-
-    summary = questionary.text(
-        "Session summary (optional, free text):",
-        default=""
-    ).ask()
-    if summary is None:
-        summary = ""
-
-    console.print("[dim]Paste session content below. Press Enter on an empty line to finish.[/dim]")
-    pasted = questionary.text(
-        "Session content:",
-        multiline=True,
-        default=""
-    ).ask()
-    if pasted is None:
-        pasted = ""
-
-    sm = SessionManager(project_root=working_root)
-
-    log_data = {
-        "files_changed": [],
-        "errors": [],
-        "warnings": [],
-        "commands_run": [],
-        "raw_content": pasted,
-        "log_source": "manual-input",
-        "line_count": len(pasted.splitlines()) if pasted else 0,
-    }
-
-    session_id = sm.save_session(
-        agent=agent or "unknown",
-        summary=summary or "Manually recorded session.",
-        log_data=log_data,
-    )
-
-    sm.update_context_md()
-
-    print_success(f"Session saved: {session_id}")
-    if pasted:
-        console.print(f"  [dim]Pasted content: {len(pasted.splitlines())} lines[/dim]")
-    console.print(f"  [dim]Context updated in .opencode/context.md[/dim]")
-
-
 def run_skills_list(working_root=None):
     """List installed skills"""
     from cli.ui import console, print_skills_list
@@ -420,7 +292,6 @@ def run_skills_list(working_root=None):
 
     if not skills:
         console.print("[yellow]No skills installed.[/yellow]")
-        console.print("[dim]Search skills with: python main.py --skills-search <query>[/dim]")
         return
 
     print_skills_list(skills)
@@ -462,7 +333,6 @@ def run_skills_install(identifier: str, working_root=None):
         print_success(f"Skill '{name}' installed to .opencode/skills/")
     else:
         print_error(f"Failed to install skill '{identifier}'. Check the identifier format.")
-        console.print("[dim]Format: owner/repo/skill-name or /path/to/file.md[/dim]")
 
 
 def run_skills_remove(name: str, working_root=None):
@@ -483,429 +353,9 @@ def run_skills_remove(name: str, working_root=None):
         print_error(f"Skill '{name}' not found.")
 
 
-def run_auto_enable(working_root=None):
-    """Enable automatic session saving for this project."""
-    from cli.ui import console, print_success, print_error
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    cm = ContinuityManager(project_root=working_root)
-    if cm.enable_auto_session():
-        print_success(f"Auto-session enabled for {working_root.name}")
-        console.print("[dim]Sessions will be automatically saved when opencode-logger exits.[/dim]")
-        console.print(f"[dim]Flag file: {working_root / '.opencode' / '.auto_session_enabled'}[/dim]")
-    else:
-        print_error("Failed to enable auto-session.")
-
-
-def run_auto_disable(working_root=None):
-    """Disable automatic session saving for this project."""
-    from cli.ui import console, print_success
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    cm = ContinuityManager(project_root=working_root)
-    if cm.disable_auto_session():
-        print_success(f"Auto-session disabled for {working_root.name}")
-    else:
-        console.print("[yellow]Auto-session was not enabled.[/yellow]")
-
-
-def run_project_status(working_root=None):
-    """Show project continuity status."""
-    from cli.ui import console
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    cm = ContinuityManager(project_root=working_root)
-
-    # Show banner
-    banner = cm.get_status_banner()
-    if banner:
-        console.print(f"\n{banner}\n")
-    else:
-        console.print(f"\n[bold cyan]Project: {working_root.name}[/bold cyan]")
-        console.print("[dim]No session history yet.[/dim]")
-
-    # Show auto-session status
-    if is_auto_session_enabled(working_root):
-        console.print("[green]Auto-session: ENABLED[/green]")
-    else:
-        console.print("[dim]Auto-session: disabled[/dim]")
-        console.print("[dim]Enable with: python main.py --auto-enable[/dim]")
-
-    # Show recent sessions if any
-    if cm.has_history():
-        console.print("\n[bold]Recent Sessions:[/bold]")
-        sessions = cm.db.list_sessions(limit=5)
-        for s in sessions:
-            ts = s.get('timestamp', 'unknown')
-            agent = s.get('agent', 'unknown')
-            summary = s.get('summary', '')[:80]
-            files = s.get('file_count', 0)
-            errors = s.get('error_count', 0)
-            console.print(f"  [dim]{ts}[/dim] @{agent} — {summary}")
-            if files or errors:
-                console.print(f"    {files} files, {errors} errors")
-
-    cm.close()
-
-
-def run_project_health(working_root=None):
-    """Show project health report."""
-    from cli.ui import console
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    cm = ContinuityManager(project_root=working_root)
-    health = cm.get_project_health()
-
-    console.print(f"\n[bold cyan]=== Project Health: {working_root.name} ===[/bold cyan]\n")
-
-    status = health.get('health_status', 'unknown')
-    status_colors = {
-        'healthy': 'green',
-        'has_warnings': 'yellow',
-        'needs_attention': 'red',
-        'new_project': 'dim',
-        'error': 'red',
-    }
-    color = status_colors.get(status, 'white')
-    console.print(f"  Status:       [{color}]{status}[/{color}]")
-    console.print(f"  Sessions:     {health.get('total_sessions', 0)}")
-    console.print(f"  Total errors: {health.get('total_errors', 0)}")
-    console.print(f"  Files changed:{health.get('total_files_changed', 0)}")
-    console.print(f"  Last active:  {health.get('last_active', 'never')}")
-    console.print(f"  Pending tasks:{health.get('pending_tasks', 0)}")
-    console.print(f"  Open errors:  {health.get('open_errors', 0)}")
-    console.print("")
-
-    cm.close()
-
-
-def run_continue_session(working_root=None):
-    """Show re-entry context from the last session."""
-    from cli.ui import console
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    cm = ContinuityManager(project_root=working_root)
-
-    if not cm.has_history():
-        console.print("[yellow]No session history found.[/yellow]")
-        console.print("[dim]Start a session with opencode-logger --agent orchestrator first.[/dim]")
-        cm.close()
-        return
-
-    prompt = cm.get_reentry_prompt()
-    if prompt:
-        console.print(f"\n[bold cyan]=== Continuity Context ===[/bold cyan]\n")
-        console.print(prompt)
-        console.print("")
-    else:
-        console.print("[yellow]Could not generate continuity context.[/yellow]")
-
-    cm.close()
-
-
-def run_list_tasks(working_root=None):
-    """List pending tasks from the last session."""
-    from cli.ui import console
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    cm = ContinuityManager(project_root=working_root)
-
-    if not cm.has_history():
-        console.print("[yellow]No session history found.[/yellow]")
-        cm.close()
-        return
-
-    last = cm.get_last_session()
-    if not last:
-        console.print("[yellow]No sessions found.[/yellow]")
-        cm.close()
-        return
-
-    pending = last.get('pending_tasks', [])
-    if not pending:
-        console.print("[green]No pending tasks![/green]")
-        cm.close()
-        return
-
-    console.print(f"\n[bold cyan]=== Pending Tasks ===[/bold cyan]\n")
-    for i, task in enumerate(pending):
-        console.print(f"  [{i}] {task}")
-    console.print(f"\n[dim]Complete a task with: python main.py --complete-task <index>[/dim]")
-
-    cm.close()
-
-
-def run_complete_task(task_index: int, working_root=None):
-    """Mark a pending task as complete."""
-    from cli.ui import console, print_success, print_error
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    cm = ContinuityManager(project_root=working_root)
-
-    if not cm.has_history():
-        print_error("No session history found.")
-        cm.close()
-        return
-
-    if cm.db.mark_task_complete(task_index):
-        print_success(f"Task [{task_index}] marked as complete.")
-    else:
-        print_error(f"Could not complete task [{task_index}]. Check the index.")
-
-    cm.close()
-
-
-
-
-def run_reset_fallback(working_root=None):
-    """Reset fallback and return to Go plan."""
-    from cli.ui import console, print_success
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    fm = FallbackManager(project_root=working_root)
-    event = fm.reset_fallback()
-
-    if event:
-        print_success(f"Fallback reset. Returned to Go plan")
-    else:
-        console.print("[yellow]No fallback was active.[/yellow]")
-
-
-def run_install_lmstudio(working_root=None, manual=False):
-    """Install LM Studio agents with auto or manual role assignment."""
-    from cli.ui import console, print_success, print_error
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    import lmstudio_manager as lm
-
-    console.print("\n[bold cyan]=== LM Studio Setup ===[/bold cyan]\n")
-
-    if not lm.check_lmstudio_running():
-        print_error("LM Studio server is not running.")
-        console.print("[dim]1. Open LM Studio[/dim]")
-        console.print("[dim]2. Go to the Server tab[/dim]")
-        console.print("[dim]3. Click 'Start Server'[/dim]")
-        console.print("[dim]4. Run this command again[/dim]")
-        return
-
-    status = lm.get_status()
-    models = status["models"]
-
-    if not models:
-        print_error("No LLM models found in LM Studio.")
-        console.print("[dim]Download models from the Discover tab in LM Studio.[/dim]")
-        return
-
-    console.print(f"[green]LM Studio running[/green] — {len(models)} LLM model(s) detected:\n")
-    for i, m in enumerate(models, 1):
-        loaded = " [green]loaded[/green]" if m["is_loaded"] else " [dim]not loaded[/dim]"
-        code_tag = " [yellow]code[/yellow]" if m["is_code"] else ""
-        console.print(f"  {i}. {m['display_name']} ({m['params_string']}, ctx={m['max_context_length']}){loaded}{code_tag}")
-
-    console.print("")
-
-    mode = "manual" if manual else "auto"
-    result = lm.install_lmstudio_agents(working_root, models, manual=manual)
-
-    print_success(f"Installed {result['count']} agent(s) for LM Studio plan")
-    console.print("\n[bold]Role assignments:[/bold]")
-    for a in result["installed"]:
-        console.print(f"  @{a['role']:<18} -> {a['display']} ({a['params']})")
-
-    console.print(f"\n[dim]Go agents backed up to: {result['backup_dir']}[/dim]")
-    console.print("[dim]Run 'python main.py --reset-go' to restore Go plan.[/dim]")
-
-    ctx = result.get("context", {})
-    if ctx.get("changed"):
-        console.print(f"\n[yellow]Context fix applied:[/yellow] {ctx['message']}")
-        console.print("[yellow]Action required:[/yellow] Reload the model in LM Studio (select another model, then reselect it) or restart LM Studio.")
-    elif ctx.get("message"):
-        console.print(f"  [dim]Context: {ctx['message']}[/dim]")
-
-
-def run_lmstudio_status(working_root=None):
-    """Show LM Studio server status and model assignments."""
-    from cli.ui import console
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    import lmstudio_manager as lm
-
-    console.print("\n[bold cyan]=== LM Studio Status ===[/bold cyan]\n")
-
-    status = lm.get_status()
-
-    if status["running"]:
-        console.print("  [green]Server: RUNNING[/green]")
-        console.print(f"  Models: {status['model_count']} LLM(s)")
-
-        models = status["models"]
-        for i, m in enumerate(models, 1):
-            loaded = " [green]loaded[/green]" if m["is_loaded"] else ""
-            code_tag = " [yellow]code[/yellow]" if m["is_code"] else ""
-            ctx = m["max_context_length"]
-            ctx_tag = f" [dim]context: {ctx if ctx > 0 else '—'}[/dim]"
-            console.print(f"    {i}. {m['display_name']} ({m['params_string']}){loaded}{code_tag}{ctx_tag}")
-
-        # Check current plan
-        from plan_manager import PlanManager
-        pm = PlanManager(project_root=working_root)
-        console.print(f"\n  Current plan: [bold]{pm.plan}[/bold]")
-
-        if pm.plan == "lmstudio":
-            # Show current agent assignments
-            agents_dir = working_root / ".opencode" / "agents"
-            if agents_dir.exists():
-                import yaml
-                console.print("\n  [bold]Agent assignments:[/bold]")
-                for md_file in sorted(agents_dir.glob("*.md")):
-                    try:
-                        content = md_file.read_text(encoding="utf-8")
-                        if content.startswith("---"):
-                            parts = content.split("---")
-                            if len(parts) >= 3:
-                                meta = yaml.safe_load(parts[1])
-                                name = meta.get("name", md_file.stem)
-                                model = meta.get("model", "")
-                                console.print(f"    @{name:<18} -> {model}")
-                    except Exception:
-                        pass
-    else:
-        console.print("  [red]Server: NOT RUNNING[/red]")
-        console.print("[dim]Start LM Studio and enable the Server tab.[/dim]")
-
-    if status["error"]:
-        console.print(f"\n  [red]Error: {status['error']}[/red]")
-
-    ctx = status.get("context", {})
-    if ctx.get("changed"):
-        console.print(f"\n  [yellow]Context fix applied:[/yellow] {ctx['message']}")
-        console.print("  [yellow](Reload models in LM Studio — select another model, then reselect it)[/yellow]")
-    elif ctx.get("message"):
-        console.print(f"  [dim]Context: {ctx['message']}[/dim]")
-
-    console.print("")
-
-
-def run_reset_go(working_root=None):
-    """Reset to Go plan, restore backed up agents."""
-    from cli.ui import console, print_success, print_error
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    import lmstudio_manager as lm
-
-    console.print("\n[bold cyan]=== Reset to Go Plan ===[/bold cyan]\n")
-
-    result = lm.reset_to_go(working_root)
-
-    if result["restored"] > 0:
-        print_success(f"Restored {result['restored']} Go agent(s)")
-        console.print("[dim]Plan reset to Go (default).[/dim]")
-    else:
-        console.print("[yellow]No Go backup found.[/yellow]")
-        console.print("[dim]Run 'python main.py --setup' to reconfigure Go agents.[/dim]")
-
-    console.print("")
-
-
-def run_mcp_status(working_root=None):
-    """Show MCP server status and available tools."""
-    from cli.ui import console, print_success, print_error
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    config = MCPConfig(project_root=working_root)
-    servers = config.get_servers()
-
-    if not servers:
-        console.print("[yellow]No MCP servers configured.[/yellow]")
-        console.print("[dim]Add one with: python main.py --mcp-add <template_name>[/dim]")
-        console.print(f"[dim]Available templates: {', '.join(MCP_SERVER_TEMPLATES.keys())}[/dim]")
-        return
-
-    console.print("\n[bold cyan]=== MCP Servers ===[/bold cyan]\n")
-    client = MCPClient(project_root=working_root)
-    for server_config in servers:
-        name = server_config.get("name", "unknown")
-        desc = server_config.get("description", "")
-        console.print(f"  [bold]{name}[/bold] — {desc}")
-        # Try to connect and list tools
-        ok, msg = client.connect_server(server_config)
-        if ok:
-            tools = client.connections[name].tools
-            console.print(f"    [green]OK Connected[/green] ({len(tools)} tool(s))")
-            for tool in tools:
-                console.print(f"      • {tool.get('name', '?')}: {tool.get('description', '')[:60]}")
-            client.disconnect_server(name)
-        else:
-            console.print(f"    [red]X {msg}[/red]")
-    console.print("")
-
-
-def run_mcp_add(template_name: str, working_root=None):
-    """Add an MCP server from a template."""
-    from cli.ui import console, print_success, print_error
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    config = MCPConfig(project_root=working_root)
-    template = config.get_template(template_name)
-    if not template:
-        print_error(f"Unknown template: '{template_name}'")
-        console.print(f"[dim]Available: {', '.join(MCP_SERVER_TEMPLATES.keys())}[/dim]")
-        return
-
-    # Substitute {{project_root}} if present
-    server_config = dict(template)
-    cmd = server_config.get("command", [])
-    server_config["command"] = [
-        c.replace("{{project_root}}", str(working_root)) for c in cmd
-    ]
-
-    config.add_server(server_config)
-    print_success(f"Added MCP server '{template_name}'")
-    console.print(f"[dim]Run 'python main.py --mcp-status' to verify.[/dim]")
-
-
 def run_skills_recommend(working_root=None, auto_install=False):
     """Analyze project and recommend skills."""
-    from cli.ui import console, print_success, print_error
+    from cli.ui import console, print_success
     from utils import resolve_working_root
     import questionary
 
@@ -921,7 +371,7 @@ def run_skills_recommend(working_root=None, auto_install=False):
 
     console.print("\n[bold cyan]=== Recommended Skills ===[/bold cyan]\n")
     for i, skill in enumerate(recommendations, 1):
-        console.print(f"  {i}. [bold]{skill['name']}[/bold] — {skill['description']}")
+        console.print(f"  {i}. [bold]{skill['name']}[/bold] -- {skill['description']}")
         console.print(f"     Tags: {', '.join(skill.get('tags', []))}")
 
     if auto_install:
@@ -939,6 +389,42 @@ def run_skills_recommend(working_root=None, auto_install=False):
         results = recommender.install_recommendations(recommendations)
         installed = sum(1 for _, s in results if s)
         print_success(f"Installed {installed}/{len(results)} skill(s).")
+
+
+def run_mcp_status(working_root=None):
+    """Show MCP server status and available tools."""
+    from cli.ui import console
+    from utils import resolve_working_root
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    from mcp_config import MCPConfig, MCP_SERVER_TEMPLATES
+    config = MCPConfig(project_root=working_root)
+    servers = config.get_servers()
+
+    if not servers:
+        console.print("[yellow]No MCP servers configured.[/yellow]")
+        console.print(f"[dim]Available templates: {', '.join(MCP_SERVER_TEMPLATES.keys())}[/dim]")
+        return
+
+    from mcp_client import MCPClient
+    console.print("\n[bold cyan]=== MCP Servers ===[/bold cyan]\n")
+    client = MCPClient(project_root=working_root)
+    for server_config in servers:
+        name = server_config.get("name", "unknown")
+        desc = server_config.get("description", "")
+        console.print(f"  [bold]{name}[/bold] -- {desc}")
+        ok, msg = client.connect_server(server_config)
+        if ok:
+            tools = client.connections[name].tools
+            console.print(f"    [green]OK Connected[/green] ({len(tools)} tool(s))")
+            for tool in tools:
+                console.print(f"      . {tool.get('name', '?')}: {tool.get('description', '')[:60]}")
+            client.disconnect_server(name)
+        else:
+            console.print(f"    [red]X {msg}[/red]")
+    console.print("")
 
 
 def run_uninstall():
@@ -1047,81 +533,594 @@ def run_update_command(target_version=None):
     console.print(f"\n[green]{message}[/green]\n")
 
 
+# ---------------------------------------------------------------------------
+# Plan activation handlers
+# ---------------------------------------------------------------------------
+
+def activate_go_plan(working_root, wizard):
+    """Activate Go plan: save plan.json and run wizard if needed."""
+    from cli.ui import console, print_success
+    from plan_manager import PlanManager
+
+    pm = PlanManager(project_root=working_root)
+    pm.save_plan("go")
+
+    agents = load_agents(working_root=working_root)
+    if not agents:
+        console.print("[yellow]No agents configured for Go plan.[/yellow]")
+        wizard.run()
+        agents = load_agents(working_root=working_root)
+
+    if agents:
+        install_global()
+        print_success(f"Go plan active with {len(agents)} agent(s)")
+    return agents
+
+
+def activate_lmstudio_plan(working_root, manual=False):
+    """Activate LM Studio plan: detect server, assign roles, install agents."""
+    from cli.ui import console, print_success, print_error
+    from plan_manager import PlanManager
+    import lmstudio_manager as lm
+
+    console.print("\n[bold cyan]=== LM Studio Setup ===[/bold cyan]\n")
+
+    if not lm.check_lmstudio_running():
+        print_error("LM Studio server is not running.")
+        console.print("[dim]1. Open LM Studio[/dim]")
+        console.print("[dim]2. Go to the Server tab[/dim]")
+        console.print("[dim]3. Click 'Start Server'[/dim]")
+        console.print("[dim]4. Run this command again[/dim]")
+        return None
+
+    status = lm.get_status()
+    models = status["models"]
+
+    if not models:
+        print_error("No LLM models found in LM Studio.")
+        console.print("[dim]Download models from the Discover tab in LM Studio.[/dim]")
+        return None
+
+    console.print(f"[green]LM Studio running[/green] -- {len(models)} LLM model(s) detected:\n")
+    for i, m in enumerate(models, 1):
+        loaded = " [green]loaded[/green]" if m["is_loaded"] else " [dim]not loaded[/dim]"
+        code_tag = " [yellow]code[/yellow]" if m["is_code"] else ""
+        console.print(f"  {i}. {m['display_name']} ({m['params_string']}, ctx={m['max_context_length']}){loaded}{code_tag}")
+
+    console.print("")
+
+    mode = "manual" if manual else "auto"
+    result = lm.install_lmstudio_agents(working_root, models, manual=manual)
+
+    print_success(f"Installed {result['count']} agent(s) for LM Studio plan")
+    console.print("\n[bold]Role assignments:[/bold]")
+    for a in result["installed"]:
+        console.print(f"  @{a['role']:<18} -> {a['display']} ({a['params']})")
+
+    pm = PlanManager(project_root=working_root)
+    pm.save_plan("lmstudio")
+
+    ctx = result.get("context", {})
+    if ctx.get("changed"):
+        console.print(f"\n[yellow]Context fix applied:[/yellow] {ctx['message']}")
+        console.print("[yellow]Action required:[/yellow] Reload the model in LM Studio (select another model, then reselect it) or restart LM Studio.")
+    elif ctx.get("message"):
+        console.print(f"  [dim]Context: {ctx['message']}[/dim]")
+
+    return load_agents(working_root=working_root)
+
+
+def _pick_models_for_plan(plan: str, working_root):
+    """Interactive model picker for copilot/openrouter plans."""
+    import questionary
+    from plan_manager import PlanManager
+    from cli.wizard import SetupWizard
+    from cli.ui import console
+
+    pm = PlanManager(project_root=working_root)
+    available_models = pm.PLAN_MODELS.get(plan, {}).get("all_available", [])
+
+    if not available_models:
+        console.print(f"[red]No known models for plan '{plan}'.[/red]")
+        return None
+
+    roles = ["orchestrator", "code-analyst", "validator", "bulk-processor",
+             "subagent", "summarizer", "frontend", "ml-specialist"]
+
+    console.print(f"\n[bold cyan]Configure models for {pm.get_plan_display_name(plan)}[/bold cyan]")
+    console.print("[dim]Select which model to assign to each role.[/dim]\n")
+
+    assignments = {}
+    for role in roles:
+        default_idx = min(roles.index(role), len(available_models) - 1)
+        default_model = pm.PLAN_MODELS[plan].get(role) or available_models[default_idx]
+
+        chosen = questionary.select(
+            f"Model for @{role}:",
+            choices=available_models,
+            default=default_model,
+        ).ask()
+
+        if chosen is None:
+            return None
+        assignments[role] = chosen
+
+    # Write agent files
+    agent_dir = working_root / ".opencode" / "agents"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+
+    permissions_map = {
+        "orchestrator":     {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "allow"},
+        "code-analyst":     {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "validator":        {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
+        "bulk-processor":   {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "subagent":         {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "summarizer":       {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "frontend":         {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "ml-specialist":    {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+    }
+
+    descriptions = {
+        "orchestrator": "Main coordinator that delegates tasks to specialized agents",
+        "code-analyst": "Senior software engineer for clean code and architecture",
+        "validator": "QA specialist for validation, linting, and quality review",
+        "bulk-processor": "Bulk data processing agent for high-volume tasks",
+        "subagent": "Debugger and fallback agent for auxiliary tasks",
+        "summarizer": "Session analyst for log analysis and project continuity",
+        "frontend": "UI specialist for React, TypeScript, and frontend development",
+        "ml-specialist": "ML engineer for training, inference, and data pipelines",
+    }
+
+    for role, model in assignments.items():
+        perms = permissions_map[role]
+        desc = descriptions[role]
+        content = f"""---
+name: {role}
+description: {desc}
+mode: {"primary" if role == "orchestrator" else "subagent"}
+model: {model}
+temperature: 0.2
+permission:
+  edit: {perms["edit"]}
+  bash: {perms["bash"]}
+  read: {perms["read"]}
+  task: {perms["task"]}
+---
+
+{desc}. Running on {pm.get_plan_display_name(plan)} ({model}).
+"""
+        file_path = agent_dir / f"{role}.md"
+        file_path.write_text(content, encoding="utf-8")
+        console.print(f"  [green]OK[/green] @{role:<18} -> {model}")
+
+    pm.save_plan(plan)
+    console.print(f"\n[bold green]{pm.get_plan_display_name(plan)} plan activated.[/bold green]")
+
+    return load_agents(working_root=working_root)
+
+
+def activate_copilot_plan(working_root):
+    """Activate GitHub Copilot plan with model selection wizard."""
+    from cli.ui import console
+    console.print("[dim]GitHub Copilot plan: uses your existing Copilot subscription.[/dim]")
+    console.print("[dim]Ensure you have an active GitHub Copilot subscription.[/dim]")
+    return _pick_models_for_plan("copilot", working_root)
+
+
+def activate_openrouter_plan(working_root):
+    """Activate OpenRouter plan with model selection wizard."""
+    import questionary
+    from cli.ui import console
+
+    console.print("[dim]OpenRouter plan: uses your own API key and credits.[/dim]\n")
+
+    api_key = questionary.text(
+        "OpenRouter API key (optional, or set OPENROUTER_API_KEY env var):",
+        default=""
+    ).ask()
+
+    if api_key:
+        import os
+        os.environ["OPENROUTER_API_KEY"] = api_key
+        console.print("  [green]OK[/green] API key set for this session.\n")
+
+    return _pick_models_for_plan("openrouter", working_root)
+
+
+def show_plan_contextual_menu(working_root, current_plan):
+    """Show contextual actions after activating a plan."""
+    import questionary
+    from cli.ui import console, print_dashboard_header, print_simple_menu, print_agent_status
+    from plan_manager import PlanManager
+
+    while True:
+        pm = PlanManager(project_root=working_root)
+        agents = load_agents(working_root=working_root)
+        plan_display = pm.get_plan_display_name()
+        agent_count = len(agents)
+
+        print_dashboard_header(current_plan, agent_count, plan_display)
+
+        if agents:
+            print_agent_status(agents)
+            console.print()
+
+        print_simple_menu("Actions", [
+            ("1", "Run diagnostics"),
+            ("2", "Sessions & continuity"),
+            ("3", "Skills & MCP tools"),
+            ("4", "Check for updates"),
+            ("5", "Switch to another provider"),
+            ("6", "Install globally"),
+            ("7", "Uninstall globally"),
+            ("0", "Exit"),
+        ])
+
+        choice = questionary.select(
+            "Select an action:",
+            choices=[
+                "1 - Run diagnostics",
+                "2 - Sessions & continuity",
+                "3 - Skills & MCP tools",
+                "4 - Check for updates",
+                "5 - Switch to another provider",
+                "6 - Install globally",
+                "7 - Uninstall globally",
+                "0 - Exit",
+            ]
+        ).ask()
+
+        if choice is None or choice.startswith("0"):
+            console.print("\n[dim]Goodbye![/dim]")
+            break
+
+        elif choice.startswith("1"):
+            run_doctor(working_root=working_root)
+
+        elif choice.startswith("2"):
+            show_sessions_submenu(working_root)
+
+        elif choice.startswith("3"):
+            show_tools_submenu(working_root)
+
+        elif choice.startswith("4"):
+            run_check_updates()
+            from update_manager import check_for_updates
+            has_update, _, latest = check_for_updates()
+            if has_update:
+                do_update = questionary.confirm(f"Install v{latest} now?", default=True).ask()
+                if do_update:
+                    run_update_command()
+
+        elif choice.startswith("5"):
+            return True  # signal to go back to plan selector
+
+        elif choice.startswith("6"):
+            install_global()
+
+        elif choice.startswith("7"):
+            run_uninstall()
+
+    return False
+
+
+def show_sessions_submenu(working_root):
+    """Session and continuity submenu."""
+    import questionary
+    from cli.ui import console, print_simple_menu
+    from utils import resolve_working_root
+
+    while True:
+        print_simple_menu("Sessions & Continuity", [
+            ("1", "View session history"),
+            ("2", "View last session"),
+            ("3", "Scan logs & save session"),
+            ("4", "Project status"),
+            ("5", "Project health"),
+            ("6", "Continue last session"),
+            ("0", "Back to main menu"),
+        ])
+
+        choice = questionary.select(
+            "Select:",
+            choices=[
+                "1 - View session history",
+                "2 - View last session",
+                "3 - Scan logs & save session",
+                "4 - Project status",
+                "5 - Project health",
+                "6 - Continue last session",
+                "0 - Back to main menu",
+            ]
+        ).ask()
+
+        if choice is None or choice.startswith("0"):
+            break
+        elif choice.startswith("1"):
+            run_sessions_list(working_root=working_root)
+        elif choice.startswith("2"):
+            run_session_status(working_root=working_root)
+        elif choice.startswith("3"):
+            run_summarize(working_root=working_root)
+        elif choice.startswith("4"):
+            from continuity import ContinuityManager
+            cm = ContinuityManager(project_root=working_root)
+            banner = cm.get_status_banner()
+            if banner:
+                console.print(f"\n{banner}\n")
+            else:
+                console.print("[dim]No session history yet.[/dim]")
+            cm.close()
+        elif choice.startswith("5"):
+            from continuity import ContinuityManager
+            cm = ContinuityManager(project_root=working_root)
+            health = cm.get_project_health()
+            from cli.ui import console
+            console.print(f"\n[bold cyan]=== Project Health ===[/bold cyan]\n")
+            console.print(f"  Status:       {health.get('health_status', 'unknown')}")
+            console.print(f"  Sessions:     {health.get('total_sessions', 0)}")
+            console.print(f"  Total errors: {health.get('total_errors', 0)}")
+            console.print(f"  Last active:  {health.get('last_active', 'never')}")
+            cm.close()
+        elif choice.startswith("6"):
+            from continuity import ContinuityManager
+            cm = ContinuityManager(project_root=working_root)
+            if cm.has_history():
+                prompt = cm.get_reentry_prompt()
+                if prompt:
+                    console.print(f"\n[bold cyan]=== Continuity Context ===[/bold cyan]\n")
+                    console.print(prompt)
+            else:
+                console.print("[yellow]No session history found.[/yellow]")
+            cm.close()
+
+
+def show_tools_submenu(working_root):
+    """Skills and MCP tools submenu."""
+    import questionary
+    from cli.ui import console, print_simple_menu
+    import questionary
+
+    while True:
+        print_simple_menu("Skills & MCP Tools", [
+            ("1", "View installed skills"),
+            ("2", "Search skills"),
+            ("3", "Install a skill"),
+            ("4", "Remove a skill"),
+            ("5", "Recommend skills for project"),
+            ("6", "View MCP servers"),
+            ("0", "Back to main menu"),
+        ])
+
+        choice = questionary.select(
+            "Select:",
+            choices=[
+                "1 - View installed skills",
+                "2 - Search skills",
+                "3 - Install a skill",
+                "4 - Remove a skill",
+                "5 - Recommend skills for project",
+                "6 - View MCP servers",
+                "0 - Back to main menu",
+            ]
+        ).ask()
+
+        if choice is None or choice.startswith("0"):
+            break
+        elif choice.startswith("1"):
+            run_skills_list(working_root=working_root)
+        elif choice.startswith("2"):
+            query = questionary.text("Search query:").ask()
+            if query:
+                run_skills_search(query, working_root=working_root)
+        elif choice.startswith("3"):
+            identifier = questionary.text("Skill identifier (owner/repo/name):").ask()
+            if identifier:
+                run_skills_install(identifier, working_root=working_root)
+        elif choice.startswith("4"):
+            name = questionary.text("Skill name to remove:").ask()
+            if name:
+                run_skills_remove(name, working_root=working_root)
+        elif choice.startswith("5"):
+            run_skills_recommend(working_root=working_root)
+        elif choice.startswith("6"):
+            run_mcp_status(working_root=working_root)
+
+
+# ---------------------------------------------------------------------------
+# Main dashboard / plan selector
+# ---------------------------------------------------------------------------
+
+def show_plan_selector(working_root):
+    """Main interactive plan selector dashboard."""
+    import questionary
+    from cli.ui import console, print_header, print_plan_selector
+    from plan_manager import PlanManager
+
+    pm = PlanManager(project_root=working_root)
+    wizard = None
+
+    while True:
+        current_plan = pm.plan
+        agents = load_agents(working_root=working_root)
+        plan_display = pm.get_plan_display_name()
+        agent_count = len(agents)
+
+        print_header()
+
+        from cli.ui import print_dashboard_header
+        print_dashboard_header(current_plan, agent_count, plan_display)
+
+        plans_info = {}
+        for key in ["go", "lmstudio", "copilot", "openrouter"]:
+            name = pm.get_plan_display_name(key)
+            desc = pm.get_plan_description(key)
+            if key == current_plan:
+                status = "ACTIVE"
+            elif key == "go":
+                status = "ready"
+            else:
+                status = "set up"
+            plans_info[key] = {"name": name, "description": desc, "status_label": status}
+
+        print_plan_selector(current_plan, plans_info)
+
+        print_simple_menu("Quick Actions", [
+            ("1", "View agent status"),
+            ("2", "Run diagnostics"),
+            ("3", "Tools & advanced"),
+            ("0", "Exit"),
+        ])
+
+        choice = questionary.select(
+            "What would you like to do?",
+            choices=[
+                f"Switch to Go plan" if current_plan != "go" else "Go plan (active)",
+                f"Switch to LM Studio" if current_plan != "lmstudio" else "LM Studio (active)",
+                f"Switch to GitHub Copilot" if current_plan != "copilot" else "GitHub Copilot (active)",
+                f"Switch to OpenRouter" if current_plan != "openrouter" else "OpenRouter (active)",
+                questionary.Separator(),
+                "View agent status",
+                "Run diagnostics",
+                "Tools & advanced",
+                "Exit",
+            ]
+        ).ask()
+
+        if choice is None or choice == "Exit":
+            console.print("\n[dim]Goodbye![/dim]")
+            break
+
+        elif "Go plan" in choice:
+            from cli.wizard import SetupWizard
+            wizard = SetupWizard(project_root=working_root)
+            agents = activate_go_plan(working_root, wizard)
+            if agents:
+                should_switch = show_plan_contextual_menu(working_root, "go")
+                if should_switch:
+                    continue
+                else:
+                    break
+
+        elif "LM Studio" in choice and "(active)" not in choice:
+            agents = activate_lmstudio_plan(working_root)
+            if agents:
+                should_switch = show_plan_contextual_menu(working_root, "lmstudio")
+                if should_switch:
+                    continue
+                else:
+                    break
+
+        elif "GitHub Copilot" in choice and "(active)" not in choice:
+            agents = activate_copilot_plan(working_root)
+            if agents:
+                should_switch = show_plan_contextual_menu(working_root, "copilot")
+                if should_switch:
+                    continue
+                else:
+                    break
+
+        elif "OpenRouter" in choice and "(active)" not in choice:
+            agents = activate_openrouter_plan(working_root)
+            if agents:
+                should_switch = show_plan_contextual_menu(working_root, "openrouter")
+                if should_switch:
+                    continue
+                else:
+                    break
+
+        elif "(active)" in choice:
+            # Show contextual menu for active plan
+            current = "go" if "Go" in choice else "lmstudio" if "LM" in choice else "copilot" if "Copilot" in choice else "openrouter"
+            should_switch = show_plan_contextual_menu(working_root, current)
+            if should_switch:
+                continue
+            else:
+                break
+
+        elif choice == "View agent status":
+            agents = load_agents(working_root=working_root)
+            if agents:
+                from cli.ui import print_agent_status
+                print_agent_status(agents)
+            else:
+                console.print("[yellow]No agents configured. Select a plan first.[/yellow]")
+
+        elif choice == "Run diagnostics":
+            run_doctor(working_root=working_root)
+
+        elif choice == "Tools & advanced":
+            show_tools_submenu(working_root)
+
+        # Pause before redrawing
+        if choice not in [None, "Exit"]:
+            console.print("\n[dim](Press any key to continue...)[/dim]")
+            try:
+                input()
+            except (EOFError, KeyboardInterrupt):
+                break
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+
 def main():
-    parser = argparse.ArgumentParser(description="oh-my-agents — Multi-Agent Orchestration for OpenCode")
-    parser.add_argument("--setup", action="store_true", help="Force initial agent configuration")
-    parser.add_argument("--doctor", action="store_true", help="Diagnose environment issues")
-    parser.add_argument("--install-global", action="store_true",
-                        help="Copy agent .md files to ~/.opencode/agents/ for global use")
-    parser.add_argument("--uninstall", action="store_true",
-                        help="Remove global installation and optional data")
+    parser = argparse.ArgumentParser(
+        description="oh-my-agents -- Multi-Agent Orchestration for OpenCode",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python main.py                    Interactive plan selector dashboard
+  python main.py --plan go          Switch to Go plan (default)
+  python main.py --plan lmstudio    Detect LM Studio and install agents
+  python main.py --doctor           Run system diagnostics
+  python main.py --status           Show current plan and agents
+        """
+    )
+
+    # Core flags
+    parser.add_argument("--plan", type=str, default=None,
+                        choices=["go", "lmstudio", "copilot", "openrouter"],
+                        help="Switch to a provider plan (go, lmstudio, copilot, openrouter)")
+    parser.add_argument("--setup", action="store_true",
+                        help="Run the Go plan setup wizard")
+    parser.add_argument("--doctor", action="store_true",
+                        help="Run system diagnostics")
+    parser.add_argument("--status", action="store_true",
+                        help="Show current plan and agent status")
     parser.add_argument("--dir", type=str, default=None,
-                        help="Explicitly set the project root directory (overrides auto-detection)")
+                        help="Set the project root directory (overrides auto-detection)")
+    parser.add_argument("--version", action="store_true",
+                        help="Show version information")
+
+    # Update flags
     parser.add_argument("--update", action="store_true",
                         help="Update oh-my-agents to the latest version")
     parser.add_argument("--check-updates", action="store_true",
                         help="Check if a newer version is available")
-    parser.add_argument("--version", action="store_true", help="Show current version")
 
-    parser.add_argument("--sessions", action="store_true", help="List recorded sessions")
-    parser.add_argument("--session", type=str, default=None, help="Show details of a specific session by ID")
-    parser.add_argument("--session-status", action="store_true", help="Show summary of the last session")
-    parser.add_argument("--summarize", action="store_true", help="Scan logs and save session record")
-    parser.add_argument("--enable-logging", action="store_true", help="Install opencode session logger wrapper")
-    parser.add_argument("--manual-session", action="store_true", help="Manually record a session from pasted content")
-
-    parser.add_argument("--skills", action="store_true", help="List installed skills")
-    parser.add_argument("--skills-search", type=str, default=None, help="Search skills on skills.sh")
-    parser.add_argument("--skills-install", type=str, default=None, help="Install a skill (owner/repo/name)")
-    parser.add_argument("--skills-remove", type=str, default=None, help="Remove an installed skill")
-
-    # Auto-session and continuity
-    parser.add_argument("--auto-enable", action="store_true",
-                        help="Enable automatic session saving for this project")
-    parser.add_argument("--auto-disable", action="store_true",
-                        help="Disable automatic session saving for this project")
-    parser.add_argument("--project-status", action="store_true",
-                        help="Show project continuity status and session history")
-    parser.add_argument("--project-health", action="store_true",
-                        help="Show project health report")
-    parser.add_argument("--continue", dest="continue_session", action="store_true",
-                        help="Show re-entry context from last session")
-    parser.add_argument("--list-tasks", action="store_true",
-                        help="List pending tasks from last session")
-    parser.add_argument("--complete-task", type=int, default=None,
-                        help="Mark a pending task as complete by index")
-    parser.add_argument("--reset-fallback", action="store_true",
-                        help="Reset fallback and return to Go plan")
-
-    parser.add_argument("--mcp-status", action="store_true", help="Show MCP servers and tools")
-    parser.add_argument("--mcp-add", type=str, default=None, help="Add MCP server from template (filesystem, sqlite, github)")
-    parser.add_argument("--skills-recommend", action="store_true", help="Analyze project and recommend skills")
-    parser.add_argument("--skills-auto", action="store_true", help="Auto-install recommended skills without prompting")
-
-    # LM Studio
-    parser.add_argument("--install-lmstudio", action="store_true",
-                        help="Install LM Studio agents (auto-assign roles by model size)")
-    parser.add_argument("--install-lmstudio-manual", action="store_true",
-                        help="Install LM Studio agents with manual role assignment")
-    parser.add_argument("--lmstudio-status", action="store_true",
-                        help="Show LM Studio server status and model assignments")
-    parser.add_argument("--reset-go", action="store_true",
-                        help="Reset to Go plan, restore backed up agents")
+    # Install/uninstall
+    parser.add_argument("--install-global", action="store_true",
+                        help="Install agent files globally to ~/.opencode/agents/")
+    parser.add_argument("--uninstall", action="store_true",
+                        help="Remove global installation and optional data")
 
     args = parser.parse_args()
 
     from utils import resolve_working_root
+    from cli.ui import console
 
     working_root = resolve_working_root(args.dir)
-    system_root = SYSTEM_ROOT
 
+    # Handle version
     if args.version:
         from update_manager import get_current_version
         current = get_current_version()
-        from cli.ui import console
         console.print(f"[bold cyan]oh-my-agents[/bold cyan] v{current}")
         return
 
+    # Handle update flags
     if args.check_updates:
         run_check_updates()
         return
@@ -1130,240 +1129,74 @@ def main():
         run_update_command()
         return
 
-    if args.mcp_status:
-        run_mcp_status(working_root=working_root)
-        return
-
-    if args.mcp_add:
-        run_mcp_add(args.mcp_add, working_root=working_root)
-        return
-
-    if args.skills_recommend:
-        run_skills_recommend(working_root=working_root)
-        return
-
-    if args.skills_auto:
-        run_skills_recommend(working_root=working_root, auto_install=True)
-        return
-
-    if args.install_lmstudio:
-        run_install_lmstudio(working_root=working_root, manual=False)
-        return
-
-    if args.install_lmstudio_manual:
-        run_install_lmstudio(working_root=working_root, manual=True)
-        return
-
-    if args.lmstudio_status:
-        run_lmstudio_status(working_root=working_root)
-        return
-
-    if args.reset_go:
-        run_reset_go(working_root=working_root)
-        return
-
+    # Check dependencies for all other flows
     missing = check_dependencies()
     if missing:
         print(f"\n  ERROR: Missing dependencies: {', '.join(missing)}")
         print(f"  Run: pip install -r requirements.txt\n")
         sys.exit(1)
 
-    from cli.ui import print_header, print_agent_status, console
-    from cli.wizard import SetupWizard
-
+    # Uninstall
     if args.uninstall:
         run_uninstall()
         return
 
+    # Install global
     if args.install_global:
         install_global()
         return
 
+    # Doctor
     if args.doctor:
         run_doctor(working_root=working_root)
         return
 
-    if args.sessions:
-        run_sessions_list(working_root=working_root)
-        return
-
-    if args.session:
-        run_session_detail(args.session, working_root=working_root)
-        return
-
-    if args.session_status:
-        run_session_status(working_root=working_root)
-        return
-
-    if args.summarize:
-        run_summarize(working_root=working_root)
-        return
-
-    if args.enable_logging:
-        run_enable_logging()
-        return
-
-    if args.manual_session:
-        run_manual_session(working_root=working_root)
-        return
-
-    if args.skills:
-        run_skills_list(working_root=working_root)
-        return
-
-    if args.skills_search:
-        run_skills_search(args.skills_search, working_root=working_root)
-        return
-
-    if args.skills_install:
-        run_skills_install(args.skills_install, working_root=working_root)
-        return
-
-    if args.skills_remove:
-        run_skills_remove(args.skills_remove, working_root=working_root)
-        return
-
-    if args.auto_enable:
-        run_auto_enable(working_root=working_root)
-        return
-
-    if args.auto_disable:
-        run_auto_disable(working_root=working_root)
-        return
-
-    if args.project_status:
-        run_project_status(working_root=working_root)
-        return
-
-    if args.project_health:
-        run_project_health(working_root=working_root)
-        return
-
-    if args.continue_session:
-        run_continue_session(working_root=working_root)
-        return
-
-    if args.list_tasks:
-        run_list_tasks(working_root=working_root)
-        return
-
-    if args.complete_task is not None:
-        run_complete_task(args.complete_task, working_root=working_root)
-        return
-
-    print_header()
-
-    wizard = SetupWizard(project_root=working_root)
-
-    if args.setup or not wizard.check_existing_config():
-        if args.setup:
-            console.print("[yellow]Forced reconfiguration mode...[/yellow]\n")
-        else:
-            console.print("[yellow]No previous agent configuration detected.[/yellow]\n")
-
-        import questionary
-        run_wizard = questionary.confirm(
-            "Do you want to run the setup wizard?",
-            default=True
-        ).ask()
-
-        if run_wizard:
-            wizard.run()
-        else:
-            console.print("\n[dim]You can run the wizard later with: python main.py --setup[/dim]")
-            return
-
-        agents = load_agents()
+    # Status
+    if args.status:
+        from plan_manager import PlanManager
+        pm = PlanManager(project_root=working_root)
+        agents = load_agents(working_root=working_root)
+        plan_display = pm.get_plan_display_name()
+        from cli.ui import print_dashboard_header, print_agent_status
+        print_dashboard_header(pm.plan, len(agents), plan_display)
         if agents:
             print_agent_status(agents)
-            console.print("\n[bold green]System ready.[/bold green] Use `opencode --agent orchestrator` to get started.")
-        else:
-            console.print("[red]Error: Could not load agents.[/red]")
         return
 
-    import questionary
-    while True:
-        choice = questionary.select(
-            "What would you like to do?",
-            choices=[
-                "View agent status",
-                "Run setup wizard",
-                "Run diagnostics",
-                "Check for updates",
-                "MCP status",
-                "LM Studio status",
-                "Install LM Studio agents",
-                "Install LM Studio agents (manual)",
-                "Reset to Go plan",
-                "Recommend skills",
-                "Install globally",
-                "Uninstall globally",
-                "View sessions",
-                "View skills",
-                "Enable auto-session",
-                "Project status",
-                "Project health",
-                "Continue last session",
-                "List pending tasks",
-                "Exit",
-            ]
-        ).ask()
+    # Setup wizard (Go plan)
+    if args.setup:
+        from cli.wizard import SetupWizard
+        wizard = SetupWizard(project_root=working_root)
+        wizard.run()
+        agents = load_agents(working_root=working_root)
+        if agents:
+            from cli.ui import print_agent_status
+            print_agent_status(agents)
+            console.print("\n[bold green]Setup complete.[/bold green] Use `opencode --agent orchestrator` to get started.")
+        return
 
-        if choice is None or choice == "Exit":
-            console.print("\n[dim]Goodbye![/dim]")
-            break
-        elif choice == "View agent status":
-            agents = load_agents()
+    # --plan flag: non-interactive plan switching
+    if args.plan:
+        plan = args.plan
+        if plan == "go":
+            from cli.wizard import SetupWizard
+            activate_go_plan(working_root, SetupWizard(project_root=working_root))
+        elif plan == "lmstudio":
+            activate_lmstudio_plan(working_root)
+        elif plan == "copilot":
+            from cli.ui import print_success
+            agents = activate_copilot_plan(working_root)
             if agents:
-                print_agent_status(agents)
-            else:
-                console.print("[red]Error: Could not load agents.[/red]")
-        elif choice == "Run setup wizard":
-            wizard.run()
-        elif choice == "Run diagnostics":
-            run_doctor(working_root=working_root)
-        elif choice == "Check for updates":
-            run_check_updates()
-            from update_manager import check_for_updates
-            has_update, _, latest = check_for_updates()
-            if has_update:
-                import questionary
-                do_update = questionary.confirm(
-                    f"Install v{latest} now?",
-                    default=True
-                ).ask()
-                if do_update:
-                    run_update_command()
-        elif choice == "Install globally":
-            install_global()
-        elif choice == "Uninstall globally":
-            run_uninstall()
-        elif choice == "MCP status":
-            run_mcp_status(working_root=working_root)
-        elif choice == "LM Studio status":
-            run_lmstudio_status(working_root=working_root)
-        elif choice == "Install LM Studio agents":
-            run_install_lmstudio(working_root=working_root, manual=False)
-        elif choice == "Install LM Studio agents (manual)":
-            run_install_lmstudio(working_root=working_root, manual=True)
-        elif choice == "Reset to Go plan":
-            run_reset_go(working_root=working_root)
-        elif choice == "Recommend skills":
-            run_skills_recommend(working_root=working_root)
-        elif choice == "View sessions":
-            run_sessions_list(working_root=working_root)
-        elif choice == "View skills":
-            run_skills_list(working_root=working_root)
-        elif choice == "Enable auto-session":
-            run_auto_enable(working_root=working_root)
-        elif choice == "Project status":
-            run_project_status(working_root=working_root)
-        elif choice == "Project health":
-            run_project_health(working_root=working_root)
-        elif choice == "Continue last session":
-            run_continue_session(working_root=working_root)
-        elif choice == "List pending tasks":
-            run_list_tasks(working_root=working_root)
+                print_success(f"Copilot plan active with {len(agents)} agent(s)")
+        elif plan == "openrouter":
+            from cli.ui import print_success
+            agents = activate_openrouter_plan(working_root)
+            if agents:
+                print_success(f"OpenRouter plan active with {len(agents)} agent(s)")
+        return
+
+    # No flags: show interactive plan selector
+    show_plan_selector(working_root)
 
 
 if __name__ == "__main__":

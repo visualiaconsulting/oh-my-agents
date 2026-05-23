@@ -11,6 +11,21 @@ from typing import Dict, Optional
 class PlanManager:
     # Plan-to-model mapping by role
     # Using registry IDs (provider/model-id) that OpenCode recognizes
+    # Human-readable plan names for the dashboard
+    PLAN_DISPLAY_NAMES = {
+        "go": "OpenCode Go Plan",
+        "lmstudio": "LM Studio",
+        "copilot": "GitHub Copilot",
+        "openrouter": "OpenRouter",
+    }
+
+    PLAN_DESCRIPTIONS = {
+        "go": "Cloud hosted models — 5000 credits/day, no setup required",
+        "lmstudio": "Run agents locally on your machine with local LLMs",
+        "copilot": "Use your GitHub Copilot subscription models",
+        "openrouter": "Bring your own API credits from multiple providers",
+    }
+
     PLAN_MODELS = {
         "go": {
             "orchestrator": "opencode-go/deepseek-v4-pro",
@@ -33,8 +48,6 @@ class PlanManager:
             ]
         },
         "lmstudio": {
-            # Models are set dynamically by lmstudio_manager.py
-            # These are fallback defaults if plan.json says lmstudio but no agents installed
             "orchestrator": "lmstudio/default-orchestrator",
             "code-analyst": "lmstudio/default-code-analyst",
             "validator": "lmstudio/default-validator",
@@ -44,13 +57,51 @@ class PlanManager:
             "frontend": "lmstudio/default-frontend",
             "ml-specialist": "lmstudio/default-ml",
             "fallback": "lmstudio/default-fallback"
+        },
+        "copilot": {
+            "orchestrator": "copilot/claude-sonnet-4",
+            "code-analyst": "copilot/gpt-4o",
+            "validator": "copilot/claude-sonnet-4",
+            "bulk-processor": "copilot/gemini-2.5-flash",
+            "subagent": "copilot/claude-3.5-haiku",
+            "summarizer": "copilot/claude-3.5-haiku",
+            "frontend": "copilot/gpt-4o",
+            "ml-specialist": "copilot/gemini-2.5-flash",
+            "fallback": "copilot/claude-3.5-haiku",
+            "all_available": [
+                "copilot/claude-sonnet-4",
+                "copilot/gpt-4o",
+                "copilot/gemini-2.5-flash",
+                "copilot/claude-3.5-haiku"
+            ]
+        },
+        "openrouter": {
+            "orchestrator": "openrouter/anthropic/claude-sonnet-4",
+            "code-analyst": "openrouter/openai/gpt-4o",
+            "validator": "openrouter/google/gemini-2.5-flash",
+            "bulk-processor": "openrouter/meta-llama/llama-3.3-70b",
+            "subagent": "openrouter/anthropic/claude-3.5-haiku",
+            "summarizer": "openrouter/meta-llama/llama-3.3-70b",
+            "frontend": "openrouter/openai/gpt-4o",
+            "ml-specialist": "openrouter/google/gemini-2.5-flash",
+            "fallback": "openrouter/anthropic/claude-3.5-haiku",
+            "all_available": [
+                "openrouter/anthropic/claude-sonnet-4",
+                "openrouter/openai/gpt-4o",
+                "openrouter/google/gemini-2.5-flash",
+                "openrouter/meta-llama/llama-3.3-70b",
+                "openrouter/anthropic/claude-3.5-haiku",
+                "openrouter/deepseek/deepseek-v3"
+            ]
         }
     }
     
     # Approximate limits per plan (for monitoring)
     PLAN_LIMITS = {
         "go": {"daily": 5000, "weekly": 25000, "monthly": 100000},
-        "lmstudio": {"daily": "unlimited", "weekly": "unlimited", "monthly": "unlimited"}
+        "lmstudio": {"daily": "unlimited", "weekly": "unlimited", "monthly": "unlimited"},
+        "copilot": {"daily": "copilot_limits", "weekly": "copilot_limits", "monthly": "copilot_limits"},
+        "openrouter": {"daily": "pay_as_you_go", "weekly": "pay_as_you_go", "monthly": "pay_as_you_go"}
     }
     
     def __init__(self, plan: Optional[str] = None, project_root: Optional[Path] = None):
@@ -138,5 +189,25 @@ class PlanManager:
             "requires_api_keys": self.plan == "api",
             "auto_fallback": True
         }
+
+    def get_plan_display_name(self, plan: Optional[str] = None) -> str:
+        """Get human-readable name for a plan key."""
+        p = plan or self.plan
+        return self.PLAN_DISPLAY_NAMES.get(p, p.capitalize())
+
+    def get_plan_description(self, plan: Optional[str] = None) -> str:
+        """Get human-readable description for a plan key."""
+        p = plan or self.plan
+        return self.PLAN_DESCRIPTIONS.get(p, "")
+
+    def save_plan(self, plan: str):
+        """Save current plan to .opencode/plan.json."""
+        plan_path = self.project_root / ".opencode" / "plan.json"
+        plan_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(plan_path, "w", encoding="utf-8") as f:
+            json.dump({"plan": plan}, f)
+        self.plan = plan
+        self.models = self.PLAN_MODELS.get(plan, self.PLAN_MODELS["go"])
+        self.limits = self.PLAN_LIMITS.get(plan, self.PLAN_LIMITS["go"])
 
 

@@ -282,4 +282,4 @@ if __name__ == "__main__":
         print(cm.get_reentry_prompt()[:500])
     else:
         print("New project — no session history yet.")
-        print("Enable auto-session with: python main.py --auto-enable")
+        print("Enable auto-session from the dashboard: python main.py -> Sessions & continuity")

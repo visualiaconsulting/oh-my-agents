@@ -1,5 +1,13 @@
 <div align="center">
 
+<p>
+  <b>🚀 Use my referral code and get started with OpenCode Go!</b><br>
+  <a href="https://opencode.ai/go?ref=SGBJ1TJNGA">https://opencode.ai/go?ref=SGBJ1TJNGA</a><br>
+  <sub>Referral code: <code>SGBJ1TJNGA</code> — helps support this project</sub>
+</p>
+
+---
+
 # 🤖 oh-my-agents
 
 ### The multi-agent orchestration framework for [OpenCode](https://opencode.ai)
@@ -24,51 +32,40 @@
 
 | Feature | Description |
 |---------|-------------|
-| 🧠 **Smart Orchestration** | The orchestrator analyzes complex tasks, decomposes them, and delegates to the right specialist |
-| 🎯 **Specialist Agents** | Each agent has a focused role: coding, QA validation, data processing, debugging, session analysis |
-| 🔐 **Least-Privilege Permissions** | Validator is read-only. Orchestrator only delegates. Code-analyst writes and executes. |
-| 📝 **Session Continuity** | Never lose context between sessions. Automatic bitacora saves errors, changes, and pending tasks |
-| 🧩 **Skills Ecosystem** | Extend agent capabilities with reusable skills from [skills.sh](https://skills.sh) |
-| 🔄 **Go-Only Standard** | Plan Go es el único plan por defecto. Sin fallback automático — reinstala si te quedas sin créditos |
-| 🖥️ **LM Studio Integration** | Detecta modelos locales, asigna roles por tamaño, evita modelos con templates rotos, escribe config global `~/.config/opencode/`, uso ilimitado sin API key (v1.7.2) |
-| 🚀 **Zero Config Start** | Clone, run setup, start coding. The wizard handles the rest |
-| 📦 **Portable** | Copy agents to any project — they adapt via `context.md` |
-| 🗄️ **Project Database** | SQLite DB per project stores sessions, file changes, errors, commands (v1.6.0) |
-| 🔄 **Auto-Session** | Sessions auto-saved when OpenCode exits — enable with `--auto-enable` (v1.6.0) |
+| **Dashboard-First CLI** | Interactive provider selector — pick Go, LM Studio, Copilot, or OpenRouter from one screen |
+| **Smart Orchestration** | The orchestrator analyzes complex tasks, decomposes them, and delegates to the right specialist |
+| **Specialist Agents** | Each agent has a focused role: coding, QA validation, data processing, debugging, session analysis |
+| **Least-Privilege Permissions** | Validator is read-only. Orchestrator only delegates. Code-analyst writes and executes. |
+| **Session Continuity** | Never lose context between sessions. Automatic bitacora saves errors, changes, and pending tasks |
+| **Skills Ecosystem** | Extend agent capabilities with reusable skills from [skills.sh](https://skills.sh) |
+| **Multi-Provider** | Switch between Go cloud, LM Studio local, GitHub Copilot, or OpenRouter with one command |
+| **Zero Config Start** | Clone, run setup, start coding. The wizard handles the rest |
+| **Portable** | Copy agents to any project — they adapt via `context.md` |
+| **Project Database** | SQLite DB per project stores sessions, file changes, errors, commands |
 
 ---
 
-### 🔄 Project Continuity & Auto-Session (v1.6.0)
+### Provider Plans
 
-oh-my-agents now automatically tracks your project state across sessions:
+oh-my-agents supports 4 provider plans, switchable from the interactive dashboard:
 
-| Feature | Description |
-|---------|-------------|
-| **Project Database** | SQLite DB per project stores sessions, file changes, errors, commands |
-| **Auto-Session** | Sessions auto-saved when OpenCode exits (enable with `--auto-enable`) |
-| **Continuity** | Re-entry prompts show pending tasks, recent changes, project health |
-| **Task Tracking** | Track and mark pending tasks across sessions |
+| Plan | Description | How to Activate |
+|------|-------------|-----------------|
+| **OpenCode Go** (default) | Cloud hosted models, 5000 credits/day | Always active or `python main.py --plan go` |
+| **LM Studio** | Run agents locally on your machine | `python main.py --plan lmstudio` |
+| **GitHub Copilot** | Use your Copilot subscription models | `python main.py --plan copilot` |
+| **OpenRouter** | Bring your own API credits | `python main.py --plan openrouter` |
 
-**Quick Start:**
 ```bash
-# Enable auto-session saving
-python main.py --auto-enable
+# Quick switch between providers
+python main.py --plan go          # Switch to Go cloud plan
+python main.py --plan lmstudio    # Auto-detect local LM Studio models
+python main.py --plan copilot     # Configure Copilot models
+python main.py --plan openrouter  # Configure OpenRouter models
 
-# After an OpenCode session, check project status
-python main.py --project-status
-
-# View re-entry context from last session
-python main.py --continue
-
-# Check project health
-python main.py --project-health
+# Or use the interactive dashboard
+python main.py
 ```
-
-**How it works:**
-1. `opencode-logger` wrapper captures all OpenCode output to `.opencode/logs/`
-2. On exit, the wrapper auto-parses the log and saves to `.opencode/project.db`
-3. When you return to the project, `--continue` shows what was happening
-4. Pending tasks, errors, and file changes are tracked across sessions
 
 ---
 
@@ -160,7 +157,7 @@ python main.py --install-global
 
 This copies agent definitions to `~/.opencode/agents/`, which OpenCode reads automatically. The setup script does this automatically in step 5.
 
-> **💡 Tip:** After installing globally, run `python main.py --check-updates` periodically to ensure you have the latest version with the newest features and fixes.
+> **Tip:** After installing globally, run `python main.py` to open the interactive dashboard, or `python main.py --check-updates` to check for updates.
 
 ### 🧭 Path Resolution — SYSTEM_ROOT vs WORKING_ROOT
 
@@ -183,75 +180,15 @@ oh-my-agents now separates two important concepts:
 
 ---
 
-## 📝 Session Management
-
-### What is it?
+## Session Management
 
 Session management ensures you **never lose context** between OpenCode sessions. When you work on a project, close OpenCode, and come back later, the system remembers:
+what was accomplished, errors that occurred, files modified, and pending tasks.
 
-- What was accomplished in the last session
-- Errors that occurred and how they were handled
-- Files that were modified
-- Pending tasks that need attention
-- Decisions made during the session
-
-### How it works
+All session commands are accessible from the dashboard: run `python main.py`, then select **"Sessions & continuity"** from the plan menu.
 
 ```
-OpenCode Session → .opencode/logs/ → session_manager.py → .opencode/sessions/ → context.md
-                                                                    ↓
-                                                          Next session reads
-                                                          context.md for continuity
-```
-
-1. **During your session:** OpenCode writes logs to `.opencode/logs/`
-2. **After your session:** Run `python main.py --summarize` to scan those logs
-3. **The system:** Extracts errors, file changes, commands run, and saves a JSON record
-4. **Context injection:** The last 3 sessions are automatically injected into `context.md`
-5. **Next session:** The orchestrator reads `context.md` and knows exactly where you left off
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `python main.py --summarize` | Scan logs and save the current session record |
-| `python main.py --sessions` | List all recorded sessions in a table |
-| `python main.py --session-status` | Show a detailed summary of the last session |
-| `python main.py --session <id>` | Show details of a specific session by ID |
-
-> **📍 Storage location:** Session records are always saved to `WORKING_ROOT/.opencode/sessions/` — your active project directory. This means you can have the framework installed globally while maintaining separate session histories per project.
-
-### Example workflow
-
-```bash
-# After finishing work in OpenCode:
-python main.py --summarize
-
-# Output:
-# ✔ Session saved: a3f8b2c1
-#   Files changed: 12
-#   Errors found: 2
-#   Context updated in .opencode/context.md
-
-# Later, check what was done:
-python main.py --session-status
-
-# Output:
-# === Last Session ===
-# Session: a3f8b2c1
-# Time:    2026-04-29 14:32:00
-# Agent:   @summarizer
-#
-# Summary: Auto-summarized session. 12 files changed, 2 errors found.
-#
-# Errors (2):
-#   • TypeError: cannot read property 'x' of undefined
-#   • Failed to compile src/components/Header.tsx
-#
-# Files Changed (12):
-#   • src/components/Header.tsx
-#   • src/utils/api.ts
-#   • ...
+OpenCode Session -> .opencode/logs/ -> session_manager.py -> .opencode/sessions/ -> context.md
 ```
 
 ### Session data format
@@ -272,16 +209,7 @@ Each session is saved as JSON in `.opencode/sessions/<id>.json`:
 }
 ```
 
-### @summarizer agent
-
-The `@summarizer` is a lightweight agent (`opencode-go/minimax-m2.5`) designed for session analysis. When delegated by the orchestrator at the end of a session, it:
-
-1. Reads the session logs
-2. Identifies key accomplishments and errors
-3. Notes pending tasks
-4. Writes the session summary
-5. Suggests improvements to `agents.md` if relevant
-6. Can download skills from skills.sh if requested
+> **Storage location:** Session records are always saved to `WORKING_ROOT/.opencode/sessions/` -- your active project directory.
 
 ---
 
@@ -312,73 +240,31 @@ You can also update via setup scripts:
 powershell -File setup.ps1 --update
 ```
 
-### Update via menu
-Run `python main.py` and select **"Check for updates"** from the interactive menu.
+### Update via dashboard
+Run `python main.py`, select your provider, then choose **"Check for updates"** from the plan menu.
 
 ---
 
-## 🧩 Skills System
+## Skills System
 
-### What are skills?
+Skills are **reusable capabilities** for AI agents. They provide procedural knowledge, best practices, and domain-specific guidance.
 
-Skills are **reusable capabilities** for AI agents. They provide procedural knowledge, best practices, and domain-specific guidance that agents can reference during their work.
+The skills ecosystem is managed by [skills.sh](https://skills.sh).
 
-The skills ecosystem is managed by [skills.sh](https://skills.sh). Browse available skills at [skills.sh](https://skills.sh) and read the documentation at [skills.sh/docs](https://skills.sh/docs).
+Skills management is accessible from the dashboard: run `python main.py`, select your provider, then choose **"Skills & MCP tools"** from the plan menu.
 
 ### How it works
 
 ```
-skills.sh (registry) → skill_registry.py → .opencode/skills/ → context.md → Agents
+skills.sh (registry) -> skill_registry.py -> .opencode/skills/ -> context.md -> Agents
 ```
 
 1. **Search:** Find skills on skills.sh by topic
 2. **Install:** Download the skill's `.md` file from GitHub to `.opencode/skills/`
 3. **Inject:** The skill content is automatically added to `context.md`
-4. **Use:** All agents see the skill as part of their context and can reference it
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `python main.py --skills` | List all installed skills |
-| `python main.py --skills-search <query>` | Search skills.sh for available skills |
-| `python main.py --skills-install <owner/repo/name>` | Install a skill from skills.sh |
-| `python main.py --skills-remove <name>` | Remove an installed skill |
-
-### Example: Installing a database skill
-
-```bash
-# 1. Search for database-related skills
-python main.py --skills-search database
-
-# Output:
-# Skills Search: 'database'
-# #  Name                         Repo
-# 1  neon-postgres                neondatabase/agent-skills
-# 2  prisma-database-setup        prisma/skills
-# 3  postgres                     planetscale/database-skills
-# 4  database-migration           wshobson/agents
-# ...
-# Install with: python main.py --skills-install owner/repo/name
-
-# 2. Install the Neon Postgres skill
-python main.py --skills-install neondatabase/agent-skills/neon-postgres
-
-# Output:
-# ✔ Skill 'neon-postgres' installed to .opencode/skills/
-
-# 3. Verify installation
-python main.py --skills
-
-# Output:
-# Installed Skills
-# Name           Description              Source
-# neon-postgres  Best practices for Neon  neondatabase/agent-skills
-```
+4. **Use:** All agents see the skill as part of their context
 
 ### Skill file format
-
-Skills are markdown files with a YAML header:
 
 ```markdown
 ---
@@ -389,52 +275,18 @@ source: neondatabase/agent-skills
 
 # Neon Postgres Best Practices
 
-When working with Neon Postgres:
-
 1. **Connection pooling:** Always use PgBouncer or the built-in pooler
 2. **Read replicas:** Enable for read-heavy workloads
 3. **Branching:** Use database branching for safe schema changes
-4. **Migrations:** Run migrations during low-traffic periods
-
-## Connection String Format
-
-postgresql://user:password@host:port/database?sslmode=require
-
-## Common Pitfalls
-
-- Don't exceed connection limits on free tier
-- Branch resets after 30 days of inactivity
 ```
 
-### How skills are injected
-
-When a skill is installed, its content is appended to `context.md` under the `## Active Skills` section. Every agent that reads `context.md` (which is all of them) automatically has access to the skill's knowledge.
-
-```markdown
-# context.md
----
-project: my-app
-plan: go
-version: 1.0
----
-
-## Active Skills
-
-### Skill: neon-postgres
-
-*Best practices for Neon Postgres*
-
-# Neon Postgres Best Practices
-...
-```
-
-### Removing a skill
+### Quick example
 
 ```bash
-python main.py --skills-remove neon-postgres
+# Search, install, and verify from the dashboard menu
+# Or use the non-interactive shortcut (go to submenu first):
+# The submenu will prompt for search terms and install IDs
 ```
-
-This deletes the `.md` file from `.opencode/skills/`. The next `--summarize` run will update `context.md` to remove the skill reference.
 
 ---
 
@@ -497,9 +349,9 @@ opencode --agent orchestrator
 
 ---
 
-## ⚙️ PlanManager
+## PlanManager
 
-The `PlanManager` uses **Go plan as the only standard**. Other plans require explicit installation.
+The `PlanManager` supports 4 provider plans, switchable via the interactive dashboard or the `--plan` flag.
 
 ```python
 from plan_manager import PlanManager
@@ -507,40 +359,36 @@ from plan_manager import PlanManager
 pm = PlanManager()
 print(f"Plan detected: {pm.plan}")
 print(f"Orchestrator model: {pm.get_model('orchestrator')}")
+print(f"Plan name: {pm.get_plan_display_name()}")
 ```
 
 ### Supported Plans
 
-| Plan | How to Activate | Orchestrator Model |
-|------|-----------------|-------------------|
-| **Go** (default) | Always active | `opencode-go/deepseek-v4-pro` |
-| **LM Studio** | `python main.py --install-lmstudio` | `lmstudio/<detected-model>` |
+| Plan | Orchestrator Model | How to Activate |
+|------|-------------------|-----------------|
+| **Go** (default) | `opencode-go/deepseek-v4-pro` | `python main.py --plan go` |
+| **LM Studio** | `lmstudio/<detected-model>` | `python main.py --plan lmstudio` |
+| **GitHub Copilot** | `copilot/claude-sonnet-4` | `python main.py --plan copilot` |
+| **OpenRouter** | `openrouter/anthropic/claude-sonnet-4` | `python main.py --plan openrouter` |
 
-> **No auto-detection:** LM Studio, Zen, API, OpenRouter, Copilot, and Ollama are no longer auto-detected. Go is the only standard plan. If you run out of credits, reinstall oh-my-agents globally or per-project.
+### LM Studio Integration
 
-### LM Studio Integration (v1.7.2)
+LM Studio provides unlimited local inference with no API key needed. Models are auto-detected via the REST API and assigned to roles using `safe_assign_roles()`.
 
-LM Studio provides unlimited local inference with no API key needed. Models are auto-detected via the REST API and assigned to roles using `safe_assign_roles()`, which avoids models with broken templates.
-
-| Command | Description |
-|---------|-------------|
-| `python main.py --install-lmstudio` | Auto-detect models, assign roles by size (safe mode) |
-| `python main.py --install-lmstudio-manual` | Manually assign models to roles |
-| `python main.py --lmstudio-status` | Show server status and current assignments |
-| `python main.py --reset-go` | Restore Go plan from backup |
+```bash
+python main.py --plan lmstudio
+```
 
 **How role assignment works:**
 1. Connects to `http://localhost:1234/v1/models` (OpenAI-compatible endpoint)
 2. Filters LLM models (excludes embeddings and known-broken models from critical roles)
 3. Ranks by parameter size with +0.5 boost for code models
-4. Assigns in priority: orchestrator → code-analyst → validator → bulk-processor → subagent
+4. Assigns in priority: orchestrator -> code-analyst -> validator -> bulk-processor -> subagent
 5. Duplicates smaller models when more roles than available LLMs
 6. Backs up Go agents before replacing them (both project and global)
 7. Writes LM Studio provider to `~/.config/opencode/opencode.jsonc` automatically
 
 #### Hardware Tiers
-
-oh-my-agents works on modest hardware. These tiers help choose the right model:
 
 | Tier | Hardware | Max Model | Example Models |
 |------|----------|-----------|----------------|
@@ -550,16 +398,15 @@ oh-my-agents works on modest hardware. These tiers help choose the right model:
 | **High GPU** | RTX 3090/4090 (24GB+) | 30B-70B | Llama 3.3 70B, Qwen 2.5 72B |
 
 **Requirements:**
-- LM Studio **0.4+** running with the HTTP server enabled
-- **API Token authentication must be disabled** in LM Studio → Developer → Server panel (uncheck "Require API Token")
+- LM Studio 0.4+ running with the HTTP server enabled
+- API Token authentication must be disabled in LM Studio -> Developer -> Server panel
 - Models must be already downloaded in LM Studio
 
 **Troubleshooting:**
-- Run `python main.py --lmstudio-status` to check if LM Studio is detected
+- Run `python main.py --plan lmstudio` to auto-detect and install
 - If you get `invalid_api_key` errors, disable API token auth in LM Studio's Server settings
 - If the orchestrator has template errors, `safe_assign_roles()` will reassign Nemotron to subagent automatically
-- **Error `n_keep >= n_ctx`**: Occurs when a model is loaded with insufficient context tokens (e.g. 2048/4096). **Solution:** In LM Studio, select the model, go to Settings > Context Length and set it to ≥ 32768. Click "Reload Model" or restart LM Studio. Verify with `python main.py --lmstudio-status`.
-- The global config is written to `~/.config/opencode/opencode.jsonc` — no local `opencode.json` needed
+- **Error `n_keep >= n_ctx`**: Set Context Length to >= 32768 in LM Studio model settings, then reload
 
 ---
 
@@ -604,34 +451,54 @@ oh-my-agents/
         └── ml-specialist.md     # ML and data pipeline specialist
 ```
 
-### CLI Arguments
+### CLI Usage
 
-| Argument | Description |
-|----------|-------------|
-| `--setup` | Force the setup wizard to reconfigure agents |
-| `--doctor` | Diagnose environment issues (Python, deps, OpenCode CLI, agents, sessions, skills) |
-| `--install-global` | Copy agent `.md` files to `~/.opencode/agents/` for global use |
-| `--uninstall` | Remove global installation (agents, sessions, skills, config). Available via interactive menu or setup scripts |
-| `--dir DIR` | Override the auto-detected project root directory (WORKING_ROOT) |
-| `--sessions` | List recorded sessions |
-| `--session <id>` | Show details of a specific session |
-| `--session-status` | Show summary of the last session |
-| `--summarize` | Scan logs and save session record |
-| `--skills` | List installed skills |
-| `--skills-search <q>` | Search skills on skills.sh |
-| `--skills-install <id>` | Install a skill (owner/repo/name) |
-| `--skills-remove <name>` | Remove an installed skill |
-| `--version` | Show current version |
-| `--check-updates` | Check if a newer version is available on GitHub |
-| `--update` | Update oh-my-agents to the latest release |
-| `--install-lmstudio` | Install LM Studio agents (auto-assign roles, avoids broken templates, writes global config) |
-| `--install-lmstudio-manual` | Install LM Studio agents with manual role assignment |
-| `--lmstudio-status` | Show LM Studio server status and model assignments |
-| `--reset-go` | Reset to Go plan, restore backed up agents |
+```
+python main.py                          Interactive provider dashboard
+python main.py --plan NAME              Switch to a provider (go, lmstudio, copilot, openrouter)
+python main.py --status                 Show current plan and agent status
+python main.py --doctor                 Run system diagnostics
+python main.py --setup                  Run Go plan setup wizard
+python main.py --install-global         Install agents globally to ~/.opencode/agents/
+python main.py --uninstall              Remove global installation
+python main.py --version                Show version
+python main.py --check-updates          Check for updates
+python main.py --update                 Update to latest version
+python main.py --dir DIR                Set project root directory
+```
 
 ---
 
 ## 📝 Changelog
+
+### v1.8.0 — Dashboard-First CLI, Copilot & OpenRouter Plans (May 2026)
+
+**New --plan system:** Four provider plans in one unified CLI.
+
+| Plan | Flag | Description |
+|------|------|-------------|
+| Go | `--plan go` | Default cloud plan, 5000 credits/day |
+| LM Studio | `--plan lmstudio` | Local models, auto-detect and assign |
+| GitHub Copilot | `--plan copilot` | Copilot subscription models |
+| OpenRouter | `--plan openrouter` | Bring your own API credits |
+
+**Dashboard-first interactive menu:**
+- Running `python main.py` shows a provider selector with all 4 plans at a glance
+- Selecting a plan activates it and shows a contextual menu (Status, Diagnostics, Sessions, Skills/MCP)
+- Sessions, skills, and MCP tools are now in clean submenus, not top-level
+
+**CLI flags reduced from ~30 to ~10:**
+- Removed: `--install-lmstudio`, `--install-lmstudio-manual`, `--lmstudio-status`, `--reset-go`
+- Removed: `--sessions`, `--session`, `--session-status`, `--summarize`
+- Removed: `--skills`, `--skills-search`, `--skills-install`, `--skills-remove`
+- Removed: `--auto-enable`, `--auto-disable`, `--project-status`, `--project-health`
+- Removed: `--mcp-status`, `--mcp-add`, `--skills-recommend`, `--skills-auto`
+- All removed functionality is accessible via the interactive dashboard submenus
+
+**New plan_manager.py features:**
+- `copilot` and `openrouter` plans with full model mappings
+- `get_plan_display_name()`, `get_plan_description()`, `save_plan()` methods
+- Model selection wizard for Copilot and OpenRouter plans
 
 ### v1.7.0 — LM Studio Integration & Go-Only Standard (May 2026)
 

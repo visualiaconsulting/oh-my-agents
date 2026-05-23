@@ -18,53 +18,28 @@ The available agents are:
 - **@frontend** — UI specialist — React, TypeScript, Tailwind. Model: opencode-go/qwen3.6-plus (SWE-Bench Verified 78.8%)
 - **@ml-specialist** — ML and data pipeline specialist. Model: opencode-go/minimax-m2.7 (MLE-Bench Lite 66.6%)
 
-### Go Plan — Only Standard
+### Provider Plans
 
-Go plan is the only standard plan. No automatic fallback or plan switching.
-If you run out of credits, reinstall oh-my-agents globally or in a specific project.
+This project supports 4 provider plans, switchable via the dashboard:
 
-### LM Studio — Optional Local Plan
+| Plan | How to Activate | Orchestrator Model |
+|------|-----------------|-------------------|
+| **Go** (default) | `python main.py --plan go` | `opencode-go/deepseek-v4-pro` |
+| **LM Studio** | `python main.py --plan lmstudio` | `lmstudio/<detected>` |
+| **GitHub Copilot** | `python main.py --plan copilot` | `copilot/claude-sonnet-4` |
+| **OpenRouter** | `python main.py --plan openrouter` | `openrouter/anthropic/claude-sonnet-4` |
 
-LM Studio provides unlimited local inference with no API key needed.
-Models are auto-detected and roles assigned by size (largest = orchestrator).
+To switch interactively: run `python main.py` and select a provider from the dashboard.
 
-Commands:
-- `python main.py --install-lmstudio` — Auto-detect models, assign roles by size
-- `python main.py --install-lmstudio-manual` — Manually assign models to roles
-- `python main.py --lmstudio-status` — Show server status and current assignments
-- `python main.py --reset-go` — Restore Go plan from backup
+## Session Continuity
 
-To use in another project, copy `.opencode/agents/` to the target project
-and modify this `CONTEXT.md` with the description of the actual project.
-
-## Session Continuity (v1.6.0)
-
-This project supports automatic session continuity. With auto-session enabled, each OpenCode session is automatically saved to `.opencode/project.db` (SQLite database) and `.opencode/sessions/` (JSON backup).
-
-Commands:
-- `python main.py --auto-enable` — Enable automatic session saving
-- `python main.py --project-status` — View project continuity status
-- `python main.py --continue` — Show re-entry context from last session
-- `python main.py --project-health` — Check project health
-- `python main.py --list-tasks` — List pending tasks
-- `python main.py --sessions` — View full session history
-- `python main.py --auto-disable` — Disable auto-session
-
-The system is being used successfully in production in the RoadFlow project.
+Session continuity is accessible from the dashboard: run `python main.py`, select your provider, then choose **"Sessions & continuity"** from the plan menu.
 
 ## Skills
 
-Skills from skills.sh can be installed to extend agent capabilities:
-- `python main.py --skills-search <query>` to search skills.sh
-- `python main.py --skills-install owner/repo/name` to install a skill
-- `python main.py --skills` to list installed skills
+Skills management is accessible from the dashboard: run `python main.py`, select your provider, then choose **"Skills & MCP tools"** from the plan menu.
 
 Installed skills are stored in `.opencode/skills/` and injected into context.
-
-## MCP Support
-
-This project supports MCP (Model Context Protocol) servers.
-Configure servers in `.opencode/mcp.json`.
 
 ## Recent Session History
 

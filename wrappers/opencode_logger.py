@@ -143,8 +143,7 @@ def check_and_trigger_fallback(project_root, log_content, args):
         if event:
             print(f"\n[oh-my-agents] WARNING: Credits exhausted on plan '{current_plan}'", file=sys.stderr)
             print(f"[oh-my-agents] Reason: {reason}", file=sys.stderr)
-            print(f"[oh-my-agents] Auto-switching to plan '{next_plan}' (free models)", file=sys.stderr)
-            print(f"[oh-my-agents] Run: python main.py --reset-fallback to restore original plan", file=sys.stderr)
+            print(f"[oh-my-agents] Run: python main.py --plan go to restore Go plan", file=sys.stderr)
             return True
         
         return False
