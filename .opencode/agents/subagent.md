@@ -1,8 +1,8 @@
 ---
 name: subagent
-description: Debugger and fallback agent
+description: Debugger and fallback agent for auxiliary tasks
 mode: subagent
-model: lmstudio/nvidia/nemotron-3-nano-4b
+model: opencode-go/glm-5.1
 temperature: 0.2
 permission:
   edit: allow
@@ -11,4 +11,4 @@ permission:
   task: deny
 ---
 
-Debugger and fallback agent. Running locally via LM Studio (Nvidia/Nemotron 3 Nano 4B, 4.0B).
+Debugger and fallback agent for auxiliary tasks. Running on OpenCode Go Plan (opencode-go/glm-5.1).

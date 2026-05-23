@@ -538,22 +538,21 @@ def run_update_command(target_version=None):
 # ---------------------------------------------------------------------------
 
 def activate_go_plan(working_root, wizard):
-    """Activate Go plan: save plan.json and run wizard if needed."""
+    """Activate Go plan: write agent files with built-in defaults, save plan."""
     from cli.ui import console, print_success
     from plan_manager import PlanManager
 
     pm = PlanManager(project_root=working_root)
+    count = pm.write_agent_files(working_root)
     pm.save_plan("go")
 
     agents = load_agents(working_root=working_root)
     if not agents:
-        console.print("[yellow]No agents configured for Go plan.[/yellow]")
-        wizard.run()
-        agents = load_agents(working_root=working_root)
+        console.print("[yellow]No agents could be loaded.[/yellow]")
+        return None
 
-    if agents:
-        install_global()
-        print_success(f"Go plan active with {len(agents)} agent(s)")
+    install_global()
+    print_success(f"Go plan active with {count} agent(s)")
     return agents
 
 
@@ -628,69 +627,38 @@ def _pick_models_for_plan(plan: str, working_root):
              "subagent", "summarizer", "frontend", "ml-specialist"]
 
     console.print(f"\n[bold cyan]Configure models for {pm.get_plan_display_name(plan)}[/bold cyan]")
-    console.print("[dim]Select which model to assign to each role.[/dim]\n")
+    console.print("[dim]Choose a model for each role, or select 'Custom...' to type your own model ID.[/dim]\n")
+
+    CUSTOM_LABEL = "✏️  Custom..."
 
     assignments = {}
     for role in roles:
         default_idx = min(roles.index(role), len(available_models) - 1)
         default_model = pm.PLAN_MODELS[plan].get(role) or available_models[default_idx]
 
+        choices = available_models + [CUSTOM_LABEL]
         chosen = questionary.select(
             f"Model for @{role}:",
-            choices=available_models,
+            choices=choices,
             default=default_model,
         ).ask()
 
         if chosen is None:
             return None
+        if chosen == CUSTOM_LABEL:
+            custom_id = questionary.text(
+                f"Enter custom model ID for @{role}:",
+                default=""
+            ).ask()
+            if not custom_id:
+                console.print(f"  [yellow]Skipped @{role}, keeping default.[/yellow]")
+                custom_id = default_model
+            chosen = custom_id
         assignments[role] = chosen
 
-    # Write agent files
-    agent_dir = working_root / ".opencode" / "agents"
-    agent_dir.mkdir(parents=True, exist_ok=True)
-
-    permissions_map = {
-        "orchestrator":     {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "allow"},
-        "code-analyst":     {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-        "validator":        {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
-        "bulk-processor":   {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-        "subagent":         {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-        "summarizer":       {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-        "frontend":         {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-        "ml-specialist":    {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    }
-
-    descriptions = {
-        "orchestrator": "Main coordinator that delegates tasks to specialized agents",
-        "code-analyst": "Senior software engineer for clean code and architecture",
-        "validator": "QA specialist for validation, linting, and quality review",
-        "bulk-processor": "Bulk data processing agent for high-volume tasks",
-        "subagent": "Debugger and fallback agent for auxiliary tasks",
-        "summarizer": "Session analyst for log analysis and project continuity",
-        "frontend": "UI specialist for React, TypeScript, and frontend development",
-        "ml-specialist": "ML engineer for training, inference, and data pipelines",
-    }
-
+    # Write agent files using PlanManager (avoids template duplication)
+    pm.write_agent_files(working_root, assignments)
     for role, model in assignments.items():
-        perms = permissions_map[role]
-        desc = descriptions[role]
-        content = f"""---
-name: {role}
-description: {desc}
-mode: {"primary" if role == "orchestrator" else "subagent"}
-model: {model}
-temperature: 0.2
-permission:
-  edit: {perms["edit"]}
-  bash: {perms["bash"]}
-  read: {perms["read"]}
-  task: {perms["task"]}
----
-
-{desc}. Running on {pm.get_plan_display_name(plan)} ({model}).
-"""
-        file_path = agent_dir / f"{role}.md"
-        file_path.write_text(content, encoding="utf-8")
         console.print(f"  [green]OK[/green] @{role:<18} -> {model}")
 
     pm.save_plan(plan)
@@ -934,7 +902,7 @@ def show_tools_submenu(working_root):
 def show_plan_selector(working_root):
     """Main interactive plan selector dashboard."""
     import questionary
-    from cli.ui import console, print_header, print_plan_selector
+    from cli.ui import console, print_header, print_plan_selector, print_simple_menu
     from plan_manager import PlanManager
 
     pm = PlanManager(project_root=working_root)

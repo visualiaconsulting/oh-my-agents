@@ -1,9 +1,9 @@
 ---
 name: validator
-description: QA specialist — validates and reviews code
+description: QA specialist for validation, linting, and quality review
 mode: subagent
-model: lmstudio/qwen2.5-coder-1.5b-instruct
-temperature: 0.1
+model: opencode-go/mimo-v2.5-pro
+temperature: 0.2
 permission:
   edit: deny
   bash: deny
@@ -11,4 +11,4 @@ permission:
   task: deny
 ---
 
-QA specialist — validates and reviews code. Running locally via LM Studio (Qwen2.5 Coder 1.5B, 1.5B).
+QA specialist for validation, linting, and quality review. Running on OpenCode Go Plan (opencode-go/mimo-v2.5-pro).

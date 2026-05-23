@@ -609,6 +609,25 @@ def reset_to_go(project_root: Path) -> Dict:
     if plan_path.exists():
         plan_path.unlink()
 
+    # Clean up LM Studio provider from global OpenCode config
+    config_path = _get_global_config_path()
+    if config_path.exists():
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            modified = False
+            if "provider" in config and "lmstudio" in config["provider"]:
+                del config["provider"]["lmstudio"]
+                modified = True
+                if not config["provider"]:
+                    del config["provider"]
+            if modified:
+                with open(config_path, "w", encoding="utf-8") as f:
+                    json.dump(config, f, indent=2, ensure_ascii=False)
+                    f.write("\n")
+        except (json.JSONDecodeError, OSError):
+            pass
+
     return {
         "restored": restored,
         "proj_restored": proj_restored,

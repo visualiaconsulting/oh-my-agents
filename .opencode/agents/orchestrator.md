@@ -1,8 +1,8 @@
 ---
 name: orchestrator
-description: Main coordinator — delegates tasks to sub-agents
+description: Main coordinator that delegates tasks to specialized agents
 mode: primary
-model: lmstudio/mistralai/ministral-3-3b
+model: opencode-go/deepseek-v4-pro
 temperature: 0.2
 permission:
   edit: deny
@@ -11,4 +11,4 @@ permission:
   task: allow
 ---
 
-Main coordinator — delegates tasks to sub-agents. Running locally via LM Studio (Mistralai/Ministral 3 3B, 3.0B).
+Main coordinator that delegates tasks to specialized agents. Running on OpenCode Go Plan (opencode-go/deepseek-v4-pro).

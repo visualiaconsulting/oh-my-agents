@@ -1,8 +1,8 @@
 ---
 name: code-analyst
-description: Senior software engineer — implements code
+description: Senior software engineer for clean code and architecture
 mode: subagent
-model: lmstudio/google/gemma-4-e2b
+model: opencode-go/deepseek-v4-flash
 temperature: 0.2
 permission:
   edit: allow
@@ -11,4 +11,4 @@ permission:
   task: deny
 ---
 
-Senior software engineer — implements code. Running locally via LM Studio (Google/Gemma 4 E2B, 2.0B).
+Senior software engineer for clean code and architecture. Running on OpenCode Go Plan (opencode-go/deepseek-v4-flash).

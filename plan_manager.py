@@ -61,7 +61,7 @@ class PlanManager:
         "copilot": {
             "orchestrator": "copilot/claude-sonnet-4",
             "code-analyst": "copilot/gpt-4o",
-            "validator": "copilot/claude-sonnet-4",
+            "validator": "copilot/claude-3.5-haiku",
             "bulk-processor": "copilot/gemini-2.5-flash",
             "subagent": "copilot/claude-3.5-haiku",
             "summarizer": "copilot/claude-3.5-haiku",
@@ -71,27 +71,35 @@ class PlanManager:
             "all_available": [
                 "copilot/claude-sonnet-4",
                 "copilot/gpt-4o",
-                "copilot/gemini-2.5-flash",
-                "copilot/claude-3.5-haiku"
+                "copilot/claude-3.5-haiku",
+                "copilot/gemini-2.5-flash"
             ]
         },
         "openrouter": {
-            "orchestrator": "openrouter/anthropic/claude-sonnet-4",
-            "code-analyst": "openrouter/openai/gpt-4o",
+            "orchestrator": "openrouter/google/gemini-2.5-flash",
+            "code-analyst": "openrouter/deepseek/deepseek-v3",
             "validator": "openrouter/google/gemini-2.5-flash",
             "bulk-processor": "openrouter/meta-llama/llama-3.3-70b",
-            "subagent": "openrouter/anthropic/claude-3.5-haiku",
-            "summarizer": "openrouter/meta-llama/llama-3.3-70b",
-            "frontend": "openrouter/openai/gpt-4o",
+            "subagent": "openrouter/google/gemini-2.5-flash",
+            "summarizer": "openrouter/google/gemini-2.5-flash",
+            "frontend": "openrouter/deepseek/deepseek-v3",
             "ml-specialist": "openrouter/google/gemini-2.5-flash",
-            "fallback": "openrouter/anthropic/claude-3.5-haiku",
+            "fallback": "openrouter/google/gemini-2.5-flash",
             "all_available": [
-                "openrouter/anthropic/claude-sonnet-4",
-                "openrouter/openai/gpt-4o",
                 "openrouter/google/gemini-2.5-flash",
+                "openrouter/deepseek/deepseek-v3",
                 "openrouter/meta-llama/llama-3.3-70b",
+                "openrouter/openai/gpt-4o",
                 "openrouter/anthropic/claude-3.5-haiku",
-                "openrouter/deepseek/deepseek-v3"
+                "openrouter/anthropic/claude-sonnet-4",
+                "openrouter/deepseek/deepseek-v4-pro",
+                "openrouter/deepseek/deepseek-v4-flash",
+                "openrouter/qwen/qwen3.6-plus",
+                "openrouter/qwen/qwen3.5-plus",
+                "openrouter/glm/glm-5.1",
+                "openrouter/minimax/m2.7",
+                "openrouter/minimax/m2.5",
+                "openrouter/kimi/kimi-k2.6"
             ]
         }
     }
@@ -104,6 +112,34 @@ class PlanManager:
         "openrouter": {"daily": "pay_as_you_go", "weekly": "pay_as_you_go", "monthly": "pay_as_you_go"}
     }
     
+    # Agent metadata for generating .md files
+    ROLE_PERMISSIONS = {
+        "orchestrator":   {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "allow"},
+        "code-analyst":   {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "validator":      {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
+        "bulk-processor": {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "subagent":       {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "summarizer":     {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "frontend":       {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "ml-specialist":  {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+    }
+
+    ROLE_DESCRIPTIONS = {
+        "orchestrator": "Main coordinator that delegates tasks to specialized agents",
+        "code-analyst": "Senior software engineer for clean code and architecture",
+        "validator": "QA specialist for validation, linting, and quality review",
+        "bulk-processor": "Bulk data processing agent for high-volume tasks",
+        "subagent": "Debugger and fallback agent for auxiliary tasks",
+        "summarizer": "Session analyst for log analysis and project continuity",
+        "frontend": "UI specialist for React, TypeScript, and frontend development",
+        "ml-specialist": "ML engineer for training, inference, and data pipelines",
+    }
+
+    ALL_ROLES = [
+        "orchestrator", "code-analyst", "validator", "bulk-processor",
+        "subagent", "summarizer", "frontend", "ml-specialist"
+    ]
+
     def __init__(self, plan: Optional[str] = None, project_root: Optional[Path] = None):
         self.project_root = project_root or Path(__file__).parent
         self.plan = plan or self._detect_plan()
@@ -124,6 +160,49 @@ class PlanManager:
             except (json.JSONDecodeError, OSError):
                 pass
         return "go"
+
+    def write_agent_files(self, working_root, plan_models=None):
+        """Write or overwrite all 8 agent .md files with the plan's models.
+        
+        Args:
+            working_root: Project root directory
+            plan_models: Dict of {role: model_id}. If None, uses self.models.
+        
+        Returns:
+            int: Number of agent files written
+        """
+        agent_dir = working_root / ".opencode" / "agents"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+
+        models = plan_models or self.models
+        plan_display = self.get_plan_display_name()
+
+        for role in self.ALL_ROLES:
+            model = models.get(role, models.get("fallback", ""))
+            perms = self.ROLE_PERMISSIONS[role]
+            desc = self.ROLE_DESCRIPTIONS[role]
+            mode = "primary" if role == "orchestrator" else "subagent"
+
+            content = (
+                "---\n"
+                f"name: {role}\n"
+                f"description: {desc}\n"
+                f"mode: {mode}\n"
+                f"model: {model}\n"
+                "temperature: 0.2\n"
+                "permission:\n"
+                f"  edit: {perms['edit']}\n"
+                f"  bash: {perms['bash']}\n"
+                f"  read: {perms['read']}\n"
+                f"  task: {perms['task']}\n"
+                "---\n"
+                "\n"
+                f"{desc}. Running on {plan_display} ({model}).\n"
+            )
+            file_path = agent_dir / f"{role}.md"
+            file_path.write_text(content, encoding="utf-8")
+
+        return len(self.ALL_ROLES)
 
     def get_available_models(self) -> list:
         """Returns a list of available model names for the current plan"""

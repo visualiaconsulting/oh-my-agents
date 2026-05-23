@@ -1,8 +1,8 @@
 ---
 name: ml-specialist
-description: ML and data pipeline specialist
+description: ML engineer for training, inference, and data pipelines
 mode: subagent
-model: lmstudio/qwen2.5-coder-1.5b-instruct
+model: opencode-go/minimax-m2.7
 temperature: 0.2
 permission:
   edit: allow
@@ -11,4 +11,4 @@ permission:
   task: deny
 ---
 
-ML and data pipeline specialist. Running locally via LM Studio (Qwen2.5 Coder 1.5B, 1.5B).
+ML engineer for training, inference, and data pipelines. Running on OpenCode Go Plan (opencode-go/minimax-m2.7).

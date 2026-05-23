@@ -1,9 +1,9 @@
 ---
 name: frontend
-description: Frontend specialist — React, TypeScript, UI
+description: UI specialist for React, TypeScript, and frontend development
 mode: subagent
-model: lmstudio/qwen2.5-coder-1.5b-instruct
-temperature: 0.3
+model: opencode-go/qwen3.6-plus
+temperature: 0.2
 permission:
   edit: allow
   bash: allow
@@ -11,4 +11,4 @@ permission:
   task: deny
 ---
 
-Frontend specialist — React, TypeScript, UI. Running locally via LM Studio (Qwen2.5 Coder 1.5B, 1.5B).
+UI specialist for React, TypeScript, and frontend development. Running on OpenCode Go Plan (opencode-go/qwen3.6-plus).

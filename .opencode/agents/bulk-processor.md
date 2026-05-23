@@ -1,9 +1,9 @@
 ---
 name: bulk-processor
-description: Bulk data processing
+description: Bulk data processing agent for high-volume tasks
 mode: subagent
-model: lmstudio/qwen2.5-coder-1.5b-instruct
-temperature: 0.3
+model: opencode-go/minimax-m2.7
+temperature: 0.2
 permission:
   edit: allow
   bash: allow
@@ -11,4 +11,4 @@ permission:
   task: deny
 ---
 
-Bulk data processing. Running locally via LM Studio (Qwen2.5 Coder 1.5B, 1.5B).
+Bulk data processing agent for high-volume tasks. Running on OpenCode Go Plan (opencode-go/minimax-m2.7).
