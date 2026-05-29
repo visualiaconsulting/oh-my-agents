@@ -29,13 +29,20 @@ class PlanManager:
     PLAN_MODELS = {
         "go": {
             "orchestrator": "opencode-go/deepseek-v4-pro",
-            "code-analyst": "opencode-go/deepseek-v4-flash",
+            "python-engineer": "opencode-go/minimax-m2.7",
+            "db-architect": "opencode-go/qwen3.6-plus",
+            "structured-engineer": "opencode-go/qwen3.5-plus",
+            "docs-writer": "opencode-go/minimax-m2.5",
+            "bulk-processor": "opencode-go/deepseek-v4-flash",
             "validator": "opencode-go/mimo-v2.5-pro",
-            "bulk-processor": "opencode-go/minimax-m2.7",
-            "subagent": "opencode-go/glm-5.1",
-            "summarizer": "opencode-go/minimax-m2.5",
-            "frontend": "opencode-go/qwen3.6-plus",
+            "researcher": "opencode-go/glm-5.1",
+            "frontend-engineer": "opencode-go/qwen3.6-plus",
+            "devops": "opencode-go/deepseek-v4-flash",
             "ml-specialist": "opencode-go/minimax-m2.7",
+            "security-reviewer": "opencode-go/mimo-v2.5-pro",
+            "git-manager": "opencode-go/deepseek-v4-flash",
+            "test-engineer": "opencode-go/qwen3.5-plus",
+            "prompt-engineer": "opencode-go/glm-5.1",
             "fallback": "opencode-go/minimax-m2.5",
             "all_available": [
                 "opencode-go/glm-5", "opencode-go/glm-5.1",
@@ -114,30 +121,46 @@ class PlanManager:
     
     # Agent metadata for generating .md files
     ROLE_PERMISSIONS = {
-        "orchestrator":   {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "allow"},
-        "code-analyst":   {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-        "validator":      {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
-        "bulk-processor": {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-        "subagent":       {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-        "summarizer":     {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-        "frontend":       {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-        "ml-specialist":  {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "orchestrator":         {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "allow"},
+        "python-engineer":      {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "db-architect":         {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "structured-engineer":  {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "docs-writer":          {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "bulk-processor":       {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "validator":            {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
+        "researcher":           {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "frontend-engineer":    {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "devops":               {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "ml-specialist":        {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "security-reviewer":    {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
+        "git-manager":          {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "test-engineer":        {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+        "prompt-engineer":      {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
     }
 
     ROLE_DESCRIPTIONS = {
-        "orchestrator": "Main coordinator that delegates tasks to specialized agents",
-        "code-analyst": "Senior software engineer for clean code and architecture",
-        "validator": "QA specialist for validation, linting, and quality review",
-        "bulk-processor": "Bulk data processing agent for high-volume tasks",
-        "subagent": "Debugger and fallback agent for auxiliary tasks",
-        "summarizer": "Session analyst for log analysis and project continuity",
-        "frontend": "UI specialist for React, TypeScript, and frontend development",
-        "ml-specialist": "ML engineer for training, inference, and data pipelines",
+        "orchestrator":         "Main coordinator that delegates tasks to specialized agents",
+        "python-engineer":      "Backend engineer for Python, FastAPI, automation, and APIs",
+        "db-architect":         "PostgreSQL specialist for schemas, queries, and data design",
+        "structured-engineer":  "Specialist in JSON, YAML, OpenAPI, Docker Compose, and structured formats",
+        "docs-writer":          "Technical documentation writer for READMEs, manuals, and wikis",
+        "bulk-processor":       "Bulk data processing agent for high-volume repetitive tasks",
+        "validator":            "QA specialist for validation, linting, and quality review",
+        "researcher":           "Technical researcher for exploring technologies and comparing frameworks",
+        "frontend-engineer":    "UI/UX specialist for React, Next.js, Tailwind, and modern frontend",
+        "devops":               "Infrastructure specialist for Docker, CI/CD, and deployment",
+        "ml-specialist":        "ML engineer for training, inference, and data pipelines",
+        "security-reviewer":    "Security specialist for auditing code, APIs, and authentication",
+        "git-manager":          "Git specialist for commits, branches, changelogs, and repo structure",
+        "test-engineer":        "Testing specialist for pytest, unit tests, integration tests, and coverage",
+        "prompt-engineer":      "Prompt designer for AI agent instructions and multi-agent workflows",
     }
 
     ALL_ROLES = [
-        "orchestrator", "code-analyst", "validator", "bulk-processor",
-        "subagent", "summarizer", "frontend", "ml-specialist"
+        "orchestrator", "python-engineer", "db-architect", "structured-engineer",
+        "docs-writer", "bulk-processor", "validator", "researcher",
+        "frontend-engineer", "devops", "ml-specialist", "security-reviewer",
+        "git-manager", "test-engineer", "prompt-engineer"
     ]
 
     def __init__(self, plan: Optional[str] = None, project_root: Optional[Path] = None):
@@ -261,9 +284,7 @@ class PlanManager:
         """Generates a configuration snippet for opencode.json"""
         return {
             "plan": self.plan,
-            "models": {role: self.get_model(role) for role in 
-             ["orchestrator", "code-analyst", "validator", "bulk-processor",
-              "subagent", "summarizer", "frontend", "ml-specialist"]},
+            "models": {role: self.get_model(role) for role in self.ALL_ROLES},
             "limits": self.limits,
             "requires_api_keys": self.plan == "api",
             "auto_fallback": True

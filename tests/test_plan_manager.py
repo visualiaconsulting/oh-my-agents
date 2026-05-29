@@ -67,33 +67,65 @@ class TestGetModel:
         pm = PlanManager()
         assert pm.get_model("orchestrator") == "opencode-go/deepseek-v4-pro"
 
-    def test_code_analyst_model(self, clean_env):
+    def test_python_engineer_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("code-analyst") == "opencode-go/deepseek-v4-flash"
+        assert pm.get_model("python-engineer") == "opencode-go/minimax-m2.7"
+
+    def test_db_architect_model(self, clean_env):
+        pm = PlanManager()
+        assert pm.get_model("db-architect") == "opencode-go/qwen3.6-plus"
+
+    def test_structured_engineer_model(self, clean_env):
+        pm = PlanManager()
+        assert pm.get_model("structured-engineer") == "opencode-go/qwen3.5-plus"
+
+    def test_docs_writer_model(self, clean_env):
+        pm = PlanManager()
+        assert pm.get_model("docs-writer") == "opencode-go/minimax-m2.5"
+
+    def test_bulk_processor_model(self, clean_env):
+        pm = PlanManager()
+        assert pm.get_model("bulk-processor") == "opencode-go/deepseek-v4-flash"
 
     def test_validator_model(self, clean_env):
         pm = PlanManager()
         assert pm.get_model("validator") == "opencode-go/mimo-v2.5-pro"
 
-    def test_bulk_processor_model(self, clean_env):
+    def test_researcher_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("bulk-processor") == "opencode-go/minimax-m2.7"
+        assert pm.get_model("researcher") == "opencode-go/glm-5.1"
 
-    def test_subagent_model(self, clean_env):
+    def test_frontend_engineer_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("subagent") == "opencode-go/glm-5.1"
+        assert pm.get_model("frontend-engineer") == "opencode-go/qwen3.6-plus"
 
-    def test_fallback_model(self, clean_env):
+    def test_devops_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("fallback") == "opencode-go/minimax-m2.5"
-
-    def test_frontend_model(self, clean_env):
-        pm = PlanManager()
-        assert pm.get_model("frontend") == "opencode-go/qwen3.6-plus"
+        assert pm.get_model("devops") == "opencode-go/deepseek-v4-flash"
 
     def test_ml_specialist_model(self, clean_env):
         pm = PlanManager()
         assert pm.get_model("ml-specialist") == "opencode-go/minimax-m2.7"
+
+    def test_security_reviewer_model(self, clean_env):
+        pm = PlanManager()
+        assert pm.get_model("security-reviewer") == "opencode-go/mimo-v2.5-pro"
+
+    def test_git_manager_model(self, clean_env):
+        pm = PlanManager()
+        assert pm.get_model("git-manager") == "opencode-go/deepseek-v4-flash"
+
+    def test_test_engineer_model(self, clean_env):
+        pm = PlanManager()
+        assert pm.get_model("test-engineer") == "opencode-go/qwen3.5-plus"
+
+    def test_prompt_engineer_model(self, clean_env):
+        pm = PlanManager()
+        assert pm.get_model("prompt-engineer") == "opencode-go/glm-5.1"
+
+    def test_fallback_model(self, clean_env):
+        pm = PlanManager()
+        assert pm.get_model("fallback") == "opencode-go/minimax-m2.5"
 
     def test_unknown_role_returns_fallback(self, clean_env):
         pm = PlanManager()

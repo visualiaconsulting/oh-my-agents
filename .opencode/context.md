@@ -1,22 +1,29 @@
 ---
 project: oh-my-agents
 plan: go
-version: 1.6.0
+version: 2.0.0
 ---
 
 # Project Context
 
-This is a multi-agent system configured for the OpenCode Go plan.
+This is a multi-agent system configured for the OpenCode Go plan with 15 specialized agents.
 The available agents are:
 
-- **@orchestrator** — Coordinator. Delegates complex tasks to sub-agents. Model: opencode-go/deepseek-v4-pro (GPQA Diamond 90.1%)
-- **@code-analyst** — Senior engineer. Implements clean and efficient code. Model: opencode-go/deepseek-v4-flash (MMLU-Pro 87.5%)
-- **@validator** — QA. Validates code and runs tests (read-only). Model: opencode-go/qwen3.6-plus (94% math precision)
-- **@bulk-processor** — Mass data processing (hidden). Model: opencode-go/qwen3.5-plus (MMLU-Pro 87.5%)
-- **@subagent** — Debugger and backup agent for auxiliary tasks. Model: opencode-go/glm-5.1
-- **@summarizer** — Session summarizer and project analyst (lightweight). Model: opencode-go/minimax-m2.5
-- **@frontend** — UI specialist — React, TypeScript, Tailwind. Model: opencode-go/qwen3.6-plus (SWE-Bench Verified 78.8%)
-- **@ml-specialist** — ML and data pipeline specialist. Model: opencode-go/minimax-m2.7 (MLE-Bench Lite 66.6%)
+- **@orchestrator** — Coordinator. Delegates complex tasks to sub-agents. Model: opencode-go/deepseek-v4-pro
+- **@python-engineer** — Backend engineer. Python, FastAPI, automation, APIs. Model: opencode-go/minimax-m2.7
+- **@db-architect** — PostgreSQL specialist. Schemas, queries, performance. Model: opencode-go/qwen3.6-plus
+- **@structured-engineer** — JSON, YAML, OpenAPI, Docker Compose specialist. Model: opencode-go/qwen3.5-plus
+- **@docs-writer** — Technical documentation writer. Model: opencode-go/minimax-m2.5
+- **@bulk-processor** — Bulk data processing and repetitive tasks. Model: opencode-go/deepseek-v4-flash
+- **@validator** — QA specialist. Validates code (read-only). Model: opencode-go/mimo-v2.5-pro
+- **@researcher** — Technical researcher. Explores technologies. Model: opencode-go/glm-5.1
+- **@frontend-engineer** — UI/UX specialist. React, Next.js, Tailwind. Model: opencode-go/qwen3.6-plus
+- **@devops** — Infrastructure. Docker, CI/CD, deployment. Model: opencode-go/deepseek-v4-flash
+- **@ml-specialist** — ML and data pipeline specialist. Model: opencode-go/minimax-m2.7
+- **@security-reviewer** — Security auditor (read-only). Model: opencode-go/mimo-v2.5-pro
+- **@git-manager** — Git specialist. Commits, branches, changelogs. Model: opencode-go/deepseek-v4-flash
+- **@test-engineer** — Testing specialist. Pytest, unit/integration tests. Model: opencode-go/qwen3.5-plus
+- **@prompt-engineer** — Prompt designer for AI agents. Model: opencode-go/glm-5.1
 
 ### Provider Plans
 

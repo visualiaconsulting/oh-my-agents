@@ -77,15 +77,15 @@ class TestAutoAssignRoles:
         # Smallest (1B) should be last assigned role
         assert result[-1][1]["id"] == "model-1b"
 
-    def test_fewer_than_eight_models(self):
+    def test_fewer_than_fifteen_models(self):
         models = [self._make_model(f"model-{i}b", float(i)) for i in range(1, 4)]
         result = auto_assign_roles(models)
         assert len(result) == 3
         roles = [r[0] for r in result]
-        assert roles == ["orchestrator", "code-analyst", "validator"]
+        assert roles == ["orchestrator", "python-engineer", "db-architect"]
 
     def test_code_model_boost(self):
-        # A 6B code model should beat a 7B non-code for code-analyst
+        # A 6B code model should beat a 7B non-code for python-engineer
         models = [
             self._make_model("large-7b", 7.0),
             self._make_model("coder-6b", 6.0, is_code=True),
@@ -95,8 +95,8 @@ class TestAutoAssignRoles:
         # Orchestrator should still be largest (7B)
         assert result[0][0] == "orchestrator"
         assert result[0][1]["id"] == "large-7b"
-        # Code-analyst should be the code model (6B + 0.5 boost = 6.5 > 5.0)
-        assert result[1][0] == "code-analyst"
+        # python-engineer should be the code model (6B + 0.5 boost = 6.5 > 5.0)
+        assert result[1][0] == "python-engineer"
         assert result[1][1]["id"] == "coder-6b"
 
 
@@ -144,7 +144,7 @@ class TestSafeAssignRoles:
         result = safe_assign_roles(models)
         assert result[0][1]["id"] == "ministral-3b"
 
-    def test_nemotron_goes_to_subagent(self):
+    def test_nemotron_goes_to_least_critical_role(self):
         models = [
             self._make_model("nemotron-4b", 4.0),
             self._make_model("ministral-3b", 3.0),
@@ -156,7 +156,7 @@ class TestSafeAssignRoles:
             if "nemotron" in model["id"]:
                 nemotron_role = role
                 break
-        assert nemotron_role == "subagent"
+        assert nemotron_role in ["prompt-engineer", "git-manager", "docs-writer"]
 
     def test_empty_models(self):
         assert safe_assign_roles([]) == []
@@ -190,8 +190,8 @@ class TestFormatAgentMd:
             "display_name": "Llama 3.1 8B",
             "params_string": "8B",
         }
-        content = format_agent_md("code-analyst", model)
-        assert "name: code-analyst" in content
+        content = format_agent_md("python-engineer", model)
+        assert "name: python-engineer" in content
         assert "mode: subagent" in content
         assert "lmstudio/llama-3.1-8b" in content
         assert "edit: allow" in content
@@ -248,7 +248,7 @@ class TestEnsureGlobalLmstudioConfig:
     def test_creates_new_file_when_not_exists(self):
         installed = [
             self._make_installed("qwen2.5-7b-instruct", "Qwen2.5 7B Instruct"),
-            self._make_installed("llama-3.1-8b", "Llama 3.1 8B", "code-analyst"),
+            self._make_installed("llama-3.1-8b", "Llama 3.1 8B", "python-engineer"),
         ]
         data = self._run_with_temp_home(installed)
 

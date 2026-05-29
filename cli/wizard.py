@@ -58,13 +58,20 @@ class SetupWizard:
         table.add_column("Role", style="dim")
 
         table.add_row("orchestrator", "opencode-go/deepseek-v4-pro", "Primary")
-        table.add_row("code-analyst", "opencode-go/deepseek-v4-flash", "Subagent")
-        table.add_row("validator", "opencode-go/mimo-v2.5-pro", "Subagent")
-        table.add_row("bulk-processor", "opencode-go/minimax-m2.7", "Subagent")
-        table.add_row("subagent", "opencode-go/glm-5.1", "Fallback")
-        table.add_row("summarizer", "opencode-go/minimax-m2.5", "Session Summary")
-        table.add_row("frontend", "opencode-go/qwen3.6-plus", "UI Specialist")
-        table.add_row("ml-specialist", "opencode-go/minimax-m2.7", "ML Specialist")
+        table.add_row("python-engineer", "opencode-go/minimax-m2.7", "Python Backend")
+        table.add_row("db-architect", "opencode-go/qwen3.6-plus", "PostgreSQL")
+        table.add_row("structured-engineer", "opencode-go/qwen3.5-plus", "JSON/YAML/OpenAPI")
+        table.add_row("docs-writer", "opencode-go/minimax-m2.5", "Documentation")
+        table.add_row("bulk-processor", "opencode-go/deepseek-v4-flash", "Bulk Processing")
+        table.add_row("validator", "opencode-go/mimo-v2.5-pro", "QA (read-only)")
+        table.add_row("researcher", "opencode-go/glm-5.1", "Tech Research")
+        table.add_row("frontend-engineer", "opencode-go/qwen3.6-plus", "UI/UX")
+        table.add_row("devops", "opencode-go/deepseek-v4-flash", "Docker/CI/CD")
+        table.add_row("ml-specialist", "opencode-go/minimax-m2.7", "ML Pipelines")
+        table.add_row("security-reviewer", "opencode-go/mimo-v2.5-pro", "Security (read-only)")
+        table.add_row("git-manager", "opencode-go/deepseek-v4-flash", "Git/Repo")
+        table.add_row("test-engineer", "opencode-go/qwen3.5-plus", "Testing")
+        table.add_row("prompt-engineer", "opencode-go/glm-5.1", "Prompt Design")
         table.add_row("fallback", "opencode-go/minimax-m2.5", "Speed/Recovery")
 
         console.print(table)
@@ -74,24 +81,38 @@ class SetupWizard:
         self.agents = [] # Reset
         defaults = [
             {"name": "orchestrator", "role": "primary", "model": "opencode-go/deepseek-v4-pro", "desc": "Central system orchestrator"},
-            {"name": "code-analyst", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "Senior software engineer"},
-            {"name": "validator", "role": "subagent", "model": "opencode-go/qwen3.6-plus", "desc": "QA and code validator"},
-            {"name": "bulk-processor", "role": "subagent", "model": "opencode-go/qwen3.5-plus", "desc": "Bulk data processing"},
-            {"name": "subagent", "role": "subagent", "model": "opencode-go/glm-5.1", "desc": "Fallback agent and generic tasks"},
-            {"name": "summarizer", "role": "subagent", "model": "opencode-go/minimax-m2.5", "desc": "Session summarizer and project analyst"},
-            {"name": "frontend", "role": "subagent", "model": "opencode-go/qwen3.6-plus", "desc": "Frontend specialist — React, TypeScript, UI"},
-            {"name": "ml-specialist", "role": "subagent", "model": "opencode-go/minimax-m2.7", "desc": "ML and data pipeline specialist"}
+            {"name": "python-engineer", "role": "subagent", "model": "opencode-go/minimax-m2.7", "desc": "Python backend engineer — FastAPI, automation, APIs"},
+            {"name": "db-architect", "role": "subagent", "model": "opencode-go/qwen3.6-plus", "desc": "PostgreSQL specialist — schemas, queries, performance"},
+            {"name": "structured-engineer", "role": "subagent", "model": "opencode-go/qwen3.5-plus", "desc": "JSON, YAML, OpenAPI, Docker Compose specialist"},
+            {"name": "docs-writer", "role": "subagent", "model": "opencode-go/minimax-m2.5", "desc": "Technical documentation writer"},
+            {"name": "bulk-processor", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "Bulk data processing and repetitive tasks"},
+            {"name": "validator", "role": "subagent", "model": "opencode-go/mimo-v2.5-pro", "desc": "QA and code validator (read-only)"},
+            {"name": "researcher", "role": "subagent", "model": "opencode-go/glm-5.1", "desc": "Technical researcher and framework comparison"},
+            {"name": "frontend-engineer", "role": "subagent", "model": "opencode-go/qwen3.6-plus", "desc": "UI/UX specialist — React, Next.js, Tailwind"},
+            {"name": "devops", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "Infrastructure — Docker, CI/CD, deployment"},
+            {"name": "ml-specialist", "role": "subagent", "model": "opencode-go/minimax-m2.7", "desc": "ML and data pipeline specialist"},
+            {"name": "security-reviewer", "role": "subagent", "model": "opencode-go/mimo-v2.5-pro", "desc": "Security auditor (read-only)"},
+            {"name": "git-manager", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "Git repo management and changelogs"},
+            {"name": "test-engineer", "role": "subagent", "model": "opencode-go/qwen3.5-plus", "desc": "Testing specialist — pytest, unit/integration tests"},
+            {"name": "prompt-engineer", "role": "subagent", "model": "opencode-go/glm-5.1", "desc": "Prompt designer for AI agents and workflows"},
         ]
 
         permissions_map = {
-            "orchestrator":     {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "allow"},
-            "code-analyst":     {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "validator":        {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
-            "bulk-processor":   {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "subagent":         {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "summarizer":       {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "frontend":         {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "ml-specialist":    {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+            "orchestrator":         {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "allow"},
+            "python-engineer":      {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+            "db-architect":         {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+            "structured-engineer":  {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+            "docs-writer":          {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+            "bulk-processor":       {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+            "validator":            {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
+            "researcher":           {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+            "frontend-engineer":    {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+            "devops":               {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+            "ml-specialist":        {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+            "security-reviewer":    {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
+            "git-manager":          {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+            "test-engineer":        {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+            "prompt-engineer":      {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
         }
 
         for d in defaults:

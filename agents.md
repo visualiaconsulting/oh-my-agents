@@ -22,27 +22,41 @@ The project implements an **Orchestrator and Specialists** architecture on the d
 
 | Agent | Role | Model (Go Plan) | Permissions | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| **@orchestrator** | Main Coordinator | `opencode-go/deepseek-v4-pro` | `Read, Task` | Breaks down complex tasks and delegates to sub-agents. Does NOT write code or execute commands. (SWE-Bench Pro 58.6%) |
-| **@code-analyst** | Senior Engineer | `opencode-go/deepseek-v4-flash` | `Edit, Bash, Read` | Clean code and architecture implementation. (GPQA Diamond 90.1%) |
-| **@validator** | QA Specialist | `opencode-go/qwen3.6-plus` | `Read Only` | Validation, linting, and quality review. No editing or bash. (94% math precision) |
-| **@bulk-processor** | Data Processor | `opencode-go/qwen3.5-plus` | `Edit, Bash, Read` | Repetitive, high-volume tasks (hidden). (MMLU-Pro 87.5%) |
-| **@subagent** | Debugger/Fallback | `opencode-go/glm-5.1` | `Edit, Bash, Read` | Generic agent for debugging and auxiliary tasks. |
-| **@summarizer** | Session Analyst | `opencode-go/minimax-m2.5` | `Edit, Bash, Read` | Lightweight session summarizer, log analysis, and project continuity. |
-| **@frontend** | UI Specialist | `opencode-go/qwen3.6-plus` | `Edit, Bash, Read` | Frontend — React, TypeScript, Tailwind, UI iteration. (SWE-Bench Verified 78.8%, 1M context) |
-| **@ml-specialist** | ML Engineer | `opencode-go/minimax-m2.7` | `Edit, Bash, Read` | ML and data pipelines — training, inference, MLOps. (MLE-Bench Lite 66.6%) |
+| **@orchestrator** | Main Coordinator | `opencode-go/deepseek-v4-pro` | `Read, Task` | Breaks down complex tasks and delegates to sub-agents. Does NOT write code or execute commands. |
+| **@python-engineer** | Python Backend | `opencode-go/minimax-m2.7` | `Edit, Bash, Read` | Backend engineer — Python, FastAPI, automation, APIs. |
+| **@db-architect** | PostgreSQL | `opencode-go/qwen3.6-plus` | `Edit, Bash, Read` | PostgreSQL specialist — schemas, queries, performance. |
+| **@structured-engineer** | Structured Data | `opencode-go/qwen3.5-plus` | `Edit, Bash, Read` | JSON, YAML, OpenAPI, Docker Compose specialist. |
+| **@docs-writer** | Documentation | `opencode-go/minimax-m2.5` | `Edit, Bash, Read` | Technical documentation writer — READMEs, manuals, wikis. |
+| **@bulk-processor** | Data Processor | `opencode-go/deepseek-v4-flash` | `Edit, Bash, Read` | Bulk data processing and repetitive tasks. |
+| **@validator** | QA Specialist | `opencode-go/mimo-v2.5-pro` | `Read Only` | Validation, linting, and quality review. No editing or bash. |
+| **@researcher** | Tech Research | `opencode-go/glm-5.1` | `Edit, Bash, Read` | Technical researcher — explores technologies and compares frameworks. |
+| **@frontend-engineer** | UI/UX | `opencode-go/qwen3.6-plus` | `Edit, Bash, Read` | UI/UX specialist — React, Next.js, Tailwind. |
+| **@devops** | Infrastructure | `opencode-go/deepseek-v4-flash` | `Edit, Bash, Read` | Docker, CI/CD, deployment specialist. |
+| **@ml-specialist** | ML Engineer | `opencode-go/minimax-m2.7` | `Edit, Bash, Read` | ML and data pipelines — training, inference, MLOps. |
+| **@security-reviewer** | Security | `opencode-go/mimo-v2.5-pro` | `Read Only` | Security auditor — code, APIs, authentication. |
+| **@git-manager** | Git/Repo | `opencode-go/deepseek-v4-flash` | `Edit, Bash, Read` | Git specialist — commits, branches, changelogs. |
+| **@test-engineer** | Testing | `opencode-go/qwen3.5-plus` | `Edit, Bash, Read` | Testing specialist — pytest, unit/integration tests. |
+| **@prompt-engineer** | Prompt Design | `opencode-go/glm-5.1` | `Edit, Bash, Read` | Prompt designer for AI agents and workflows. |
 
 ### 🔍 Permission Details by Agent
 
 | Agent | edit | bash | read | task |
 |--------|:----:|:----:|:----:|:----:|
 | **@orchestrator** | ❌ deny | ❌ deny | ✅ allow | ✅ allow |
-| **@code-analyst** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
-| **@validator** | ❌ deny | ❌ deny | ✅ allow | ❌ deny |
+| **@python-engineer** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
+| **@db-architect** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
+| **@structured-engineer** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
+| **@docs-writer** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
 | **@bulk-processor** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
-| **@subagent** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
-| **@summarizer** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
-| **@frontend** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
+| **@validator** | ❌ deny | ❌ deny | ✅ allow | ❌ deny |
+| **@researcher** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
+| **@frontend-engineer** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
+| **@devops** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
 | **@ml-specialist** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
+| **@security-reviewer** | ❌ deny | ❌ deny | ✅ allow | ❌ deny |
+| **@git-manager** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
+| **@test-engineer** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
+| **@prompt-engineer** | ✅ allow | ✅ allow | ✅ allow | ❌ deny |
 
 ---
 
@@ -53,7 +67,7 @@ The project implements an **Orchestrator and Specialists** architecture on the d
 The `PlanManager` is the logical brain that manages agent configuration based on the detected plan:
 
 - **Plan Detection:** Automatically identifies whether you are in `go`, `zen`, `api`, `enterprise`, `openrouter`, `copilot`, or `ollama` using environment variables and configuration files.
-- **Model Mapping:** Maps each role (`orchestrator`, `code-analyst`, `validator`, `bulk-processor`, `subagent`, `summarizer`) to the optimal model for the active plan.
+- **Model Mapping:** Maps each role (`orchestrator`, `python-engineer`, `db-architect`, `structured-engineer`, `docs-writer`, `bulk-processor`, `validator`, `researcher`, `frontend-engineer`, `devops`, `ml-specialist`, `security-reviewer`, `git-manager`, `test-engineer`, `prompt-engineer`) to the optimal model for the active plan.
 - **Fallbacks:** Provides backup models if the primary one is not available.
 - **API Key Validation:** Verifies that external providers have the necessary credentials (only for `api` and `openrouter` plans).
 
@@ -62,13 +76,20 @@ The `PlanManager` is the logical brain that manages agent configuration based on
 | Role | Model |
 |:---|:---|
 | Orchestrator | `opencode-go/deepseek-v4-pro` |
-| Code Analyst | `opencode-go/deepseek-v4-flash` |
-| Validator | `opencode-go/qwen3.6-plus` |
-| Bulk Processor | `opencode-go/qwen3.5-plus` |
-| Subagent | `opencode-go/glm-5.1` |
-| Summarizer | `opencode-go/minimax-m2.5` |
-| Frontend | `opencode-go/qwen3.6-plus` |
+| Python Engineer | `opencode-go/minimax-m2.7` |
+| DB Architect | `opencode-go/qwen3.6-plus` |
+| Structured Engineer | `opencode-go/qwen3.5-plus` |
+| Docs Writer | `opencode-go/minimax-m2.5` |
+| Bulk Processor | `opencode-go/deepseek-v4-flash` |
+| Validator | `opencode-go/mimo-v2.5-pro` |
+| Researcher | `opencode-go/glm-5.1` |
+| Frontend Engineer | `opencode-go/qwen3.6-plus` |
+| DevOps | `opencode-go/deepseek-v4-flash` |
 | ML Specialist | `opencode-go/minimax-m2.7` |
+| Security Reviewer | `opencode-go/mimo-v2.5-pro` |
+| Git Manager | `opencode-go/deepseek-v4-flash` |
+| Test Engineer | `opencode-go/qwen3.5-plus` |
+| Prompt Engineer | `opencode-go/glm-5.1` |
 | Fallback | `opencode-go/minimax-m2.5` |
 
 ### ~~`opencode.jsonc`~~ — Removed
@@ -115,8 +136,8 @@ Manages skills from the skills.sh ecosystem:
 Manages local model inference via LM Studio:
 - **`check_lmstudio_running()`** — Checks if LM Studio server is accessible at `http://localhost:1234/v1/models`
 - **`list_models()`** — Fetches available models from the OpenAI-compatible endpoint, sorts by parameter size, marks embedding models and code models
-- **`auto_assign_roles()`** — Assigns largest model to orchestrator, 2nd to code-analyst, etc.; code models get a +0.5 boost for code-analyst
-- **`safe_assign_roles()`** — Like `auto_assign_roles()` but detects known-broken models (e.g., Nemotron with broken Jinja2 template) and reassigns them to subagent, keeping stable models for orchestrator
+- **`auto_assign_roles()`** — Assigns largest model to orchestrator, 2nd to python-engineer, etc.; code models get a +0.5 boost for python-engineer
+- **`safe_assign_roles()`** — Like `auto_assign_roles()` but detects known-broken models (e.g., Nemotron with broken Jinja2 template) and reassigns them to least critical roles, keeping stable models for orchestrator
 - **`ensure_global_lmstudio_config()`** — Writes/updates the LM Studio provider in `~/.config/opencode/opencode.jsonc` with baseURL, npm package, assigned models, and per-model limits (context/output)
 - **`format_agent_md()`** — Generates agent `.md` files with model ID `lmstudio/<model-name>`
 - **`install_lmstudio_agents()`** — Backs up Go agents (both project and global), creates LM Studio agents in both locations, writes `plan.json`, calls `ensure_global_lmstudio_config()`
@@ -136,7 +157,7 @@ oh-my-agents is designed to work on modest hardware. LM Studio can run models ev
 |------|----------|---------------|----------|-------|
 | **Integrated** | Intel UHD/Iris, AMD Radeon integrated, no GPU | 1.5B - 3B Q4 | Qwen 2.5 Coder 1.5B, Ministral 3B, Phi-3 Mini 3.8B | Code review, simple tasks, chat |
 | **Entry GPU** | GTX 1650/1660, RTX 2050/3050 (4-6GB) | 3B - 7B Q4 | Ministral 3B, Gemma 4 E2B, Qwen 2.5 7B | Orchestrator, validator, full agent suite |
-| **Mid GPU** | RTX 2060/3060/4060 (6-12GB) | 7B - 14B Q4 | Qwen 2.5 7B, Mistral 7B, Llama 3.1 8B, DeepSeek Coder V2 Lite | Full 8-agent system, code generation |
+| **Mid GPU** | RTX 2060/3060/4060 (6-12GB) | 7B - 14B Q4 | Qwen 2.5 7B, Mistral 7B, Llama 3.1 8B, DeepSeek Coder V2 Lite | Full 15-agent system, code generation |
 | **High GPU** | RTX 3090/4090, A-series (24GB+) | 30B - 70B Q4 | Llama 3.3 70B, Qwen 2.5 72B, DeepSeek V3 | Heavy orchestration, complex analysis |
 
 #### Recommended Models by Tier
@@ -162,18 +183,18 @@ oh-my-agents is designed to work on modest hardware. LM Studio can run models ev
 The `safe_assign_roles()` function optimizes model placement for limited hardware:
 
 1. **Filters out** embedding models (no chat capability) and known-broken models
-2. **Ranks by parameter size** with a +0.5 boost for code models (prefers them for code-analyst)
-3. **Assigns in priority order**: orchestrator > code-analyst > validator > bulk-processor, etc.
-4. **Duplicates models** if more roles than available LLMs (e.g., 3 LLMs for 8 roles → smaller model reused)
-5. **Broken models** (e.g., Nemotron with bad Jinja2 template) go to subagent (least critical role)
+2. **Ranks by parameter size** with a +0.5 boost for code models (prefers them for python-engineer)
+3. **Assigns in priority order**: orchestrator > python-engineer > db-architect > validator > ...
+4. **Duplicates models** if more roles than available LLMs (e.g., 3 LLMs for 15 roles → smaller model reused)
+5. **Broken models** (e.g., Nemotron with bad Jinja2 template) go to least critical roles (prompt-engineer, git-manager, docs-writer)
 
 Example with 4 LLMs + 1 embedding on a modest machine:
 ```
 orchestrator  → Ministral 3.3B      (biggest stable model)
-code-analyst  → Gemma 4 E2B         (2nd biggest, good reasoning)
-validator     → Qwen Coder 1.5B     (fast, lightweight validation)
-subagent      → Nemotron 4B         (broken template, least critical)
-bulk-processor → Qwen Coder 1.5B   (reused — light async tasks)
+python-engineer → Gemma 4 E2B       (2nd biggest, good reasoning)
+db-architect  → Qwen Coder 1.5B    (fast, lightweight)
+validator     → Qwen Coder 1.5B    (reused — validation only)
+prompt-engineer → Nemotron 4B       (broken template, least critical)
 ```
 
 ### `cli/wizard.py` — Setup Wizard
@@ -202,7 +223,7 @@ The **NVIDIA Nemotron 3 Nano 4B** GGUF model has a broken Jinja2 prompt template
 
 This happens when OpenCode sends a chat completion request — the template applies a `| string` filter to a null message field, which Jinja2 cannot process.
 
-**Solution:** `safe_assign_roles()` in `lmstudio_manager.py` detects Nemotron by its model ID and reassigns it to the `subagent` role (least critical). The orchestrator gets the next largest stable model (e.g., Ministral 3.3B). If you still want to use Nemotron as orchestrator, you can fix the template manually in LM Studio:
+**Solution:** `safe_assign_roles()` in `lmstudio_manager.py` detects Nemotron by its model ID and reassigns it to least critical roles (`prompt-engineer`, `git-manager`, or `docs-writer`). The orchestrator gets the next largest stable model (e.g., Ministral 3.3B). If you still want to use Nemotron as orchestrator, you can fix the template manually in LM Studio:
 
 1. Open LM Studio → My Models
 2. Select Nemotron 3 Nano 4B → Settings
@@ -700,8 +721,8 @@ Translated all documentation, comments, and user-facing strings from Spanish to 
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py              # Shared fixtures
-│   ├── test_plan_manager.py     # 29 tests: plans, models, validation
-│   ├── test_wizard.py           # 22 tests: defaults, permissions, save
+│   ├── test_plan_manager.py     # 33 tests: plans, models, validation
+│   ├── test_wizard.py           # 27 tests: defaults, permissions, save
 │   ├── test_main.py             # 15 tests: agents, deps, global install, uninstall
 │   ├── test_update_manager.py   # 10 tests: version, updates, merge
 │   ├── test_lmstudio.py         # 26 tests: LM Studio detection, role assignment, global config, safe_assign
@@ -714,13 +735,20 @@ Translated all documentation, comments, and user-facing strings from Spanish to 
     ├── context.md               # Global context injected to all agents
     └── agents/
         ├── orchestrator.md      # Main coordinator
-        ├── code-analyst.md      # Senior software engineer
-        ├── validator.md         # QA and code validation
-        ├── bulk-processor.md    # Bulk processing (hidden)
-        ├── subagent.md          # Debugger / fallback agent
-        ├── summarizer.md        # Session summarizer
-        ├── frontend.md          # Frontend specialist
-        └── ml-specialist.md     # ML and data pipeline specialist
+        ├── python-engineer.md   # Python backend engineer
+        ├── db-architect.md      # PostgreSQL specialist
+        ├── structured-engineer.md # JSON/YAML/OpenAPI specialist
+        ├── docs-writer.md       # Technical documentation
+        ├── bulk-processor.md    # Bulk processing
+        ├── validator.md         # QA and code validation (read-only)
+        ├── researcher.md        # Tech researcher
+        ├── frontend-engineer.md # UI/UX specialist
+        ├── devops.md            # Docker/CI/CD specialist
+        ├── ml-specialist.md     # ML and data pipeline specialist
+        ├── security-reviewer.md # Security auditor (read-only)
+        ├── git-manager.md       # Git specialist
+        ├── test-engineer.md     # Testing specialist
+        └── prompt-engineer.md   # Prompt designer
 ```
 
 ---

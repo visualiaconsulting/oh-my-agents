@@ -14,7 +14,7 @@
 
 [![OpenCode](https://img.shields.io/badge/Built_for-OpenCode_Go-00D4AA?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyTDIgN2wxMCA1IDEwLTVNMiAxN2wxMCA1IDEwLTVNMiAxMmwxMCA1IDEwLTUiLz48L3N2Zz4=)](https://opencode.ai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.7.3-blue?style=for-the-badge)](https://github.com/visualiaconsulting/oh-my-agents/releases/tag/v1.7.3)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue?style=for-the-badge)](https://github.com/visualiaconsulting/oh-my-agents/releases/tag/v2.0.0)
 [![GitHub Stars](https://img.shields.io/github/stars/visualiaconsulting/oh-my-agents?style=for-the-badge&logo=github)](https://github.com/visualiaconsulting/oh-my-agents/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/visualiaconsulting/oh-my-agents?style=for-the-badge&logo=github)](https://github.com/visualiaconsulting/oh-my-agents/issues)
 
@@ -34,8 +34,8 @@
 |---------|-------------|
 | **Dashboard-First CLI** | Interactive provider selector — pick Go, LM Studio, Copilot, or OpenRouter from one screen |
 | **Smart Orchestration** | The orchestrator analyzes complex tasks, decomposes them, and delegates to the right specialist |
-| **Specialist Agents** | Each agent has a focused role: coding, QA validation, data processing, debugging, session analysis |
-| **Least-Privilege Permissions** | Validator is read-only. Orchestrator only delegates. Code-analyst writes and executes. |
+| **15 Specialist Agents** | Each agent has a focused role: Python backend, databases, documentation, QA, security, DevOps, testing, and more |
+| **Least-Privilege Permissions** | Validator and Security Reviewer are read-only. Orchestrator only delegates. |
 | **Session Continuity** | Never lose context between sessions. Automatic bitacora saves errors, changes, and pending tasks |
 | **Skills Ecosystem** | Extend agent capabilities with reusable skills from [skills.sh](https://skills.sh) |
 | **Multi-Provider** | Switch between Go cloud, LM Studio local, GitHub Copilot, or OpenRouter with one command |
@@ -73,18 +73,25 @@ python main.py
 
 | Agent | Model (Go Plan) | Role | Permissions |
 |-------|:----------------:|------|:-----------:|
-| **@orchestrator** | `kimi-k2.6` | 🎼 Coordinator — decomposes tasks, delegates to specialists | `read` `task` |
-| **@code-analyst** | `deepseek-v4-pro` | 💻 Senior Engineer — writes clean code, implements features | `edit` `bash` `read` |
-| **@validator** | `mimo-v2.5-pro` | 🔍 QA Specialist — validates quality, edge cases, precision | `read` only |
-| **@bulk-processor** | `deepseek-v4-flash` | ⚡ Data Processor — handles repetitive, high-volume tasks (hidden) | `edit` `bash` `read` |
-| **@subagent** | `glm-5.1` | 🛠️ Debugger — auxiliary tasks and fallback agent | `edit` `bash` `read` |
-| **@summarizer** | `minimax-m2.5` | 📊 Session Analyst — summarizes sessions, analyzes project state | `edit` `bash` `read` |
-| **@frontend** | `qwen3.6-plus` | 🎨 UI Specialist — React, TypeScript, Tailwind, rapid iteration | `edit` `bash` `read` |
-| **@ml-specialist** | `minimax-m2.7` | 🧪 ML Engineer — training, inference, data pipelines, MLOps | `edit` `bash` `read` |
+| **@orchestrator** | `deepseek-v4-pro` | 🎼 Coordinator — decomposes tasks, delegates to specialists | `read` `task` |
+| **@python-engineer** | `minimax-m2.7` | 🐍 Python Backend — FastAPI, automation, APIs | `edit` `bash` `read` |
+| **@db-architect** | `qwen3.6-plus` | 🗄️ PostgreSQL — schemas, queries, performance | `edit` `bash` `read` |
+| **@structured-engineer** | `qwen3.5-plus` | 📋 Structured Data — JSON, YAML, OpenAPI, Docker Compose | `edit` `bash` `read` |
+| **@docs-writer** | `minimax-m2.5` | 📝 Documentation — READMEs, manuals, wikis | `edit` `bash` `read` |
+| **@bulk-processor** | `deepseek-v4-flash` | ⚡ Bulk Processing — repetitive, high-volume tasks | `edit` `bash` `read` |
+| **@validator** | `mimo-v2.5-pro` | 🔍 QA Specialist — validates quality, linting, precision | `read` only |
+| **@researcher** | `glm-5.1` | 🔬 Tech Research — explores technologies, compares frameworks | `edit` `bash` `read` |
+| **@frontend-engineer** | `qwen3.6-plus` | 🎨 UI/UX — React, Next.js, Tailwind | `edit` `bash` `read` |
+| **@devops** | `deepseek-v4-flash` | 🚀 Infrastructure — Docker, CI/CD, deployment | `edit` `bash` `read` |
+| **@ml-specialist** | `minimax-m2.7` | 🧪 ML Engineer — training, inference, data pipelines | `edit` `bash` `read` |
+| **@security-reviewer** | `mimo-v2.5-pro` | 🔒 Security — audits code, APIs, authentication | `read` only |
+| **@git-manager** | `deepseek-v4-flash` | 📦 Git — commits, branches, changelogs | `edit` `bash` `read` |
+| **@test-engineer** | `qwen3.5-plus` | 🧪 Testing — pytest, unit/integration tests | `edit` `bash` `read` |
+| **@prompt-engineer** | `glm-5.1` | ✨ Prompt Design — AI agent instructions, workflows | `edit` `bash` `read` |
 
-> **Model selection:** Each model is chosen by benchmark performance — Kimi K2.6 leads SWE-Bench Pro (58.6%), DeepSeek V4 Pro leads GPQA Diamond (90.1%), MiMo V2.5 Pro has 94% math precision, Qwen 3.6 Plus ($0.325/M tokens) is optimal for iterative UI work, MiniMax M2.7 leads MLE-Bench Lite (66.6%).
+> **Model selection:** Models chosen by benchmark performance — DeepSeek V4 Pro leads GPQA Diamond (90.1%), MiMo V2.5 Pro has 94% math precision, Qwen 3.6 Plus ($0.325/M tokens) for UI work, MiniMax M2.7 leads MLE-Bench Lite (66.6%).
 
-> **How it works:** You give a task to `@orchestrator`. It analyzes, plans, and delegates to the right specialist(s). The validator checks quality before returning results. After the session, `@summarizer` can analyze logs and save a continuity record.
+> **How it works:** You give a task to `@orchestrator`. It analyzes, plans, and delegates to the right specialist(s). The validator checks quality before returning results. 15 specialized agents cover the full development lifecycle.
 
 ---
 
@@ -199,7 +206,7 @@ Each session is saved as JSON in `.opencode/sessions/<id>.json`:
 {
   "session_id": "a3f8b2c1",
   "timestamp": "2026-04-29 14:32:00",
-  "agent": "summarizer",
+  "agent": "system",
   "summary": "Auto-summarized session...",
   "errors": ["TypeError: ..."],
   "pending_tasks": ["Fix header responsive layout"],
@@ -299,7 +306,7 @@ source: neondatabase/agent-skills
 ```
 
 The orchestrator:
-1. Asks `@code-analyst` to prepare/complete the training script
+1. Asks `@python-engineer` to prepare/complete the training script
 2. Asks `@validator` to verify parameters are correct
 3. Executes the consolidated command
 
@@ -311,7 +318,7 @@ The orchestrator:
 
 The orchestrator:
 1. Reads CSV/results.csv
-2. Asks `@code-analyst` to extract metrics
+2. Asks `@python-engineer` to extract metrics
 3. Asks `@validator` to verify targets are met
 4. Returns a comparative summary
 
@@ -322,9 +329,9 @@ The orchestrator:
 ```
 
 The orchestrator:
-1. Asks `@code-analyst` to refactor with async patterns
+1. Asks `@python-engineer` to refactor with async patterns
 2. Asks `@validator` to review the refactored code
-3. Asks `@code-analyst` to add error handling and tests
+3. Asks `@test-engineer` to add error handling and tests
 4. Asks `@validator` to run and validate tests
 5. Returns consolidated results
 
@@ -383,7 +390,7 @@ python main.py --plan lmstudio
 1. Connects to `http://localhost:1234/v1/models` (OpenAI-compatible endpoint)
 2. Filters LLM models (excludes embeddings and known-broken models from critical roles)
 3. Ranks by parameter size with +0.5 boost for code models
-4. Assigns in priority: orchestrator -> code-analyst -> validator -> bulk-processor -> subagent
+4. Assigns in priority: orchestrator -> python-engineer -> db-architect -> validator -> ...
 5. Duplicates smaller models when more roles than available LLMs
 6. Backs up Go agents before replacing them (both project and global)
 7. Writes LM Studio provider to `~/.config/opencode/opencode.jsonc` automatically
@@ -405,7 +412,7 @@ python main.py --plan lmstudio
 **Troubleshooting:**
 - Run `python main.py --plan lmstudio` to auto-detect and install
 - If you get `invalid_api_key` errors, disable API token auth in LM Studio's Server settings
-- If the orchestrator has template errors, `safe_assign_roles()` will reassign Nemotron to subagent automatically
+- If the orchestrator has template errors, `safe_assign_roles()` will reassign Nemotron to least critical roles automatically
 - **Error `n_keep >= n_ctx`**: Set Context Length to >= 32768 in LM Studio model settings, then reload
 
 ---
@@ -442,13 +449,20 @@ oh-my-agents/
     ├── skills/                  # Installed skills (gitignored)
     └── agents/
         ├── orchestrator.md      # Main coordinator
-        ├── code-analyst.md      # Senior software engineer
-        ├── validator.md         # QA and code validation
-        ├── bulk-processor.md    # High-volume data processing (hidden)
-        ├── subagent.md          # Debugger / fallback agent
-        ├── summarizer.md        # Session summarizer
-        ├── frontend.md          # Frontend specialist
-        └── ml-specialist.md     # ML and data pipeline specialist
+        ├── python-engineer.md   # Python backend engineer
+        ├── db-architect.md      # PostgreSQL specialist
+        ├── structured-engineer.md # JSON/YAML/OpenAPI specialist
+        ├── docs-writer.md       # Technical documentation
+        ├── bulk-processor.md    # Bulk processing
+        ├── validator.md         # QA and code validation (read-only)
+        ├── researcher.md        # Tech researcher
+        ├── frontend-engineer.md # UI/UX specialist
+        ├── devops.md            # Docker/CI/CD specialist
+        ├── ml-specialist.md     # ML and data pipeline specialist
+        ├── security-reviewer.md # Security auditor (read-only)
+        ├── git-manager.md       # Git specialist
+        ├── test-engineer.md     # Testing specialist
+        └── prompt-engineer.md   # Prompt designer
 ```
 
 ### CLI Usage
@@ -470,6 +484,58 @@ python main.py --dir DIR                Set project root directory
 ---
 
 ## 📝 Changelog
+
+### v2.0.0 — 15 Specialized Agents (May 2026)
+
+**Major restructuring: 8 generic agents → 15 specialized agents.**
+
+| Before | After |
+|--------|-------|
+| orchestrator | orchestrator |
+| code-analyst | python-engineer, db-architect, structured-engineer |
+| validator | validator |
+| bulk-processor | bulk-processor |
+| subagent | researcher, devops, git-manager |
+| summarizer | docs-writer, prompt-engineer |
+| frontend | frontend-engineer |
+| ml-specialist | ml-specialist, security-reviewer, test-engineer |
+
+**New agents:**
+- **@python-engineer** — Python backend specialist (FastAPI, automation, APIs)
+- **@db-architect** — PostgreSQL schemas, queries, performance
+- **@structured-engineer** — JSON, YAML, OpenAPI, Docker Compose
+- **@docs-writer** — Technical documentation (READMEs, manuals, wikis)
+- **@researcher** — Tech research and framework comparison
+- **@frontend-engineer** — UI/UX specialist (React, Next.js, Tailwind)
+- **@devops** — Docker, CI/CD, deployment infrastructure
+- **@security-reviewer** — Security auditor (read-only)
+- **@git-manager** — Git specialist (commits, branches, changelogs)
+- **@test-engineer** — Testing specialist (pytest, unit/integration tests)
+- **@prompt-engineer** — Prompt designer for AI agents and workflows
+
+**Removed agents:**
+- `code-analyst` → replaced by `python-engineer`
+- `subagent` → replaced by `researcher`, `devops`, `git-manager`
+- `summarizer` → replaced by `docs-writer` (session analysis moved to system)
+- `frontend` → renamed to `frontend-engineer`
+
+**Permission changes:**
+- `validator` → now read-only (edit: deny, bash: deny)
+- `security-reviewer` → read-only (edit: deny, bash: deny)
+- All execution agents retain full edit/bash/read permissions
+
+**Files modified:**
+- `plan_manager.py` — 15 roles, permissions, descriptions, ALL_ROLES
+- `lmstudio_manager.py` — 15 ROLE_NAMES, safe_assign_roles() priority order
+- `main.py` — _pick_models_for_plan() uses 15 roles
+- `cli/wizard.py` — 15 agent defaults, permission map
+- `.opencode/context.md` — v2.0.0, 15 agents listed
+- `agents.md` — Full documentation update
+- `tests/test_plan_manager.py` — 33 tests for 15 roles
+- `tests/test_wizard.py` — 27 tests for 15 agents
+- `tests/test_lmstudio.py` — Updated for new role names
+
+**Tests:** 178 passing
 
 ### v1.8.0 — Dashboard-First CLI, Copilot & OpenRouter Plans (May 2026)
 
@@ -504,7 +570,7 @@ python main.py --dir DIR                Set project root directory
 
 **New features:**
 - **LM Studio Manager (`lmstudio_manager.py`):** Detects LM Studio server, lists downloaded models, ranks by size, assigns roles automatically or manually
-- **Auto role assignment:** Largest model → orchestrator, 2nd → code-analyst, etc. Code models get a boost for code-analyst role
+- **Auto role assignment:** Largest model → orchestrator, 2nd → python-engineer, etc. Code models get a boost for python-engineer role
 - **Manual mode:** User selects which model goes to each role via interactive menu
 - **Backup & restore:** Go agents are backed up before LM Studio install; `--reset-go` restores them
 
@@ -539,7 +605,7 @@ python main.py --dir DIR                Set project root directory
 - `reset_to_go()` restores both locations from backup.
 
 **Bug fix — Nemotron broken Jinja2 template:**
-- Added `safe_assign_roles()` that detects Nemotron (and similar broken models) and reassigns them to `subagent` (least critical), keeping stable models for orchestrator.
+- Added `safe_assign_roles()` that detects Nemotron (and similar broken models) and reassigns them to least critical roles, keeping stable models for orchestrator.
 
 **New feature — Hardware tiers:**
 - Documented 4 hardware tiers (Integrated, Entry GPU, Mid GPU, High GPU) with recommended models for each.
@@ -594,7 +660,7 @@ python main.py --dir DIR                Set project root directory
 - **Auto-Skills:** `skill_recommender.py` analyzes your project and recommends relevant skills
 - **Skills Catalog:** `skills_catalog.json` with 9 built-in skills (React, Django, FastAPI, Docker, etc.)
 - **New CLI flags:** `--mcp-status`, `--mcp-add`, `--skills-recommend`, `--skills-auto`
-- **Agent permissions:** `mcp: allow` for orchestrator and code-analyst
+- **Agent permissions:** `mcp: allow` for orchestrator and python-engineer
 
 **New files:**
 - `mcp_client.py`, `mcp_config.py` — MCP protocol implementation
@@ -640,7 +706,7 @@ python main.py --dir DIR                Set project root directory
 - Validator: `Kimi K2.6` → **MiMo V2.5 Pro** (94% math precision for rigorous verification)
 
 **New agents:**
-- **@frontend** — UI specialist with `Qwen 3.6 Plus` (SWE-Bench Verified 78.8%, 1M context, $0.325/M tokens)
+- **@frontend-engineer** — UI/UX specialist with `Qwen 3.6 Plus` (SWE-Bench Verified 78.8%, 1M context, $0.325/M tokens)
 - **@ml-specialist** — ML pipelines with `MiniMax M2.7` (MLE-Bench Lite 66.6%, 10B active parameters)
 
 **Registry fix:**
@@ -653,7 +719,7 @@ python main.py --dir DIR                Set project root directory
 **New features:**
 - **Session bitacora:** `session_manager.py` scans OpenCode logs, saves session records, and injects context for continuity between sessions
 - **Skills system:** `skill_registry.py` downloads and manages skills from [skills.sh](https://skills.sh) ecosystem
-- **@summarizer agent:** New lightweight agent (`opencode-go/minimax-m2.5`) for session analysis and project continuity
+- **@docs-writer agent:** Technical documentation writer (`opencode-go/minimax-m2.5`) for READMEs, manuals, and wikis
 - **Global install automatic:** `setup.ps1` now installs agents globally by default — `opencode --agent orchestrator` works from any folder
 - **Quick install:** `install.ps1` for fast setup on new machines
 
@@ -674,7 +740,7 @@ python main.py --dir DIR                Set project root directory
 - `skill_registry.py` — Skills download and management
 - `utils.py` — Cross-platform helpers
 - `install.ps1` — Quick installer for Windows
-- `.opencode/agents/summarizer.md` — Summarizer agent definition
+- `.opencode/agents/docs-writer.md` — Docs writer agent definition
 
 ### v0.9.3.3 — Interactive Main Menu (April 2026)
 
@@ -690,7 +756,7 @@ Translated all documentation and code comments from Spanish to English.
 
 ### v0.9.2.1 — Subagent Model Fix + Multi-Plan Support (April 2026)
 
-Subagent model changed to `glm-5.1`. Added OpenRouter, Copilot, and Ollama plans.
+Subagent model changed to `glm-5.1`. Added OpenRouter, Copilot, and Ollama plans. (Agents later restructured in v2.0.0)
 
 ### v0.9.2.0 — Rebrand to oh-my-agents (April 2026)
 
@@ -719,7 +785,7 @@ Contributions are welcome! Here's how:
 ### Ideas for contribution
 
 - 🔌 Add support for new OpenCode plans
-- 🤖 Create new specialist agents (e.g., `@doc-writer`, `@security-auditor`)
+- 🤖 Create new specialist agents (e.g., `@data-engineer`, `@platform-engineer`)
 - 🎨 Improve the CLI wizard UI
 - 📖 Translate documentation
 - 🧪 Add integration tests

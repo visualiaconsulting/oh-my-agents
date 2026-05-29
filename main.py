@@ -263,7 +263,7 @@ def run_summarize(working_root=None):
         return
 
     session_id = sm.save_session(
-        agent="summarizer",
+        agent="system",
         summary=f"Auto-summarized session. {len(log_data.get('files_changed', []))} files changed, {len(log_data.get('errors', []))} errors found.",
         errors=log_data.get("errors", []),
         files_changed=log_data.get("files_changed", []),
@@ -623,8 +623,10 @@ def _pick_models_for_plan(plan: str, working_root):
         console.print(f"[red]No known models for plan '{plan}'.[/red]")
         return None
 
-    roles = ["orchestrator", "code-analyst", "validator", "bulk-processor",
-             "subagent", "summarizer", "frontend", "ml-specialist"]
+    roles = ["orchestrator", "python-engineer", "db-architect", "structured-engineer",
+             "docs-writer", "bulk-processor", "validator", "researcher",
+             "frontend-engineer", "devops", "ml-specialist", "security-reviewer",
+             "git-manager", "test-engineer", "prompt-engineer"]
 
     console.print(f"\n[bold cyan]Configure models for {pm.get_plan_display_name(plan)}[/bold cyan]")
     console.print("[dim]Choose a model for each role, or select 'Custom...' to type your own model ID.[/dim]\n")

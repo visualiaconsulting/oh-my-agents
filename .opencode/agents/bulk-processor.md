@@ -1,8 +1,8 @@
 ---
 name: bulk-processor
-description: Bulk data processing agent for high-volume tasks
+description: Bulk data processing agent for high-volume repetitive tasks
 mode: subagent
-model: opencode-go/minimax-m2.7
+model: opencode-go/deepseek-v4-flash
 temperature: 0.2
 permission:
   edit: allow
@@ -11,4 +11,4 @@ permission:
   task: deny
 ---
 
-Bulk data processing agent for high-volume tasks. Running on OpenCode Go Plan (opencode-go/minimax-m2.7).
+Bulk data processing agent for high-volume repetitive tasks. Running on OpenCode Go Plan (opencode-go/deepseek-v4-flash).

@@ -25,36 +25,54 @@ GLOBAL_AGENTS_DIR = Path.home() / ".opencode" / "agents"
 GLOBAL_BACKUP_DIR = Path.home() / ".opencode" / "agents-go-backup"
 
 ROLE_NAMES = [
-    "orchestrator", "code-analyst", "validator", "bulk-processor",
-    "subagent", "summarizer", "frontend", "ml-specialist"
+    "orchestrator", "python-engineer", "db-architect", "structured-engineer",
+    "docs-writer", "bulk-processor", "validator", "researcher",
+    "frontend-engineer", "devops", "ml-specialist", "security-reviewer",
+    "git-manager", "test-engineer", "prompt-engineer"
 ]
 
 ROLE_DESCRIPTIONS = {
-    "orchestrator": "Main coordinator — delegates tasks to sub-agents",
-    "code-analyst": "Senior software engineer — implements code",
-    "validator": "QA specialist — validates and reviews code",
-    "bulk-processor": "Bulk data processing",
-    "subagent": "Debugger and fallback agent",
-    "summarizer": "Session summarizer and project analyst",
-    "frontend": "Frontend specialist — React, TypeScript, UI",
-    "ml-specialist": "ML and data pipeline specialist",
+    "orchestrator":         "Main coordinator — delegates tasks to sub-agents",
+    "python-engineer":      "Backend engineer — Python, FastAPI, automation, APIs",
+    "db-architect":         "PostgreSQL specialist — schemas, queries, performance",
+    "structured-engineer":  "JSON, YAML, OpenAPI, Docker Compose specialist",
+    "docs-writer":          "Technical documentation writer",
+    "bulk-processor":       "Bulk data processing and repetitive tasks",
+    "validator":            "QA specialist — validates and reviews code",
+    "researcher":           "Technical researcher — explores technologies",
+    "frontend-engineer":    "UI/UX specialist — React, Next.js, Tailwind",
+    "devops":               "Infrastructure — Docker, CI/CD, deployment",
+    "ml-specialist":        "ML and data pipeline specialist",
+    "security-reviewer":    "Security specialist — audits code and APIs",
+    "git-manager":          "Git specialist — commits, branches, changelogs",
+    "test-engineer":        "Testing specialist — pytest, unit/integration tests",
+    "prompt-engineer":      "Prompt designer — AI agent instructions",
 }
 
 ROLE_PERMISSIONS = {
-    "orchestrator":   {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "allow"},
-    "code-analyst":   {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "validator":      {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
-    "bulk-processor": {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "subagent":       {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "summarizer":     {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "frontend":       {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "ml-specialist":  {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+    "orchestrator":         {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "allow"},
+    "python-engineer":      {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+    "db-architect":         {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+    "structured-engineer":  {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+    "docs-writer":          {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+    "bulk-processor":       {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+    "validator":            {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
+    "researcher":           {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+    "frontend-engineer":    {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+    "devops":               {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+    "ml-specialist":        {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+    "security-reviewer":    {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
+    "git-manager":          {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+    "test-engineer":        {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+    "prompt-engineer":      {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
 }
 
 ROLE_TEMPERATURES = {
-    "orchestrator": 0.2, "code-analyst": 0.2, "validator": 0.1,
-    "bulk-processor": 0.3, "subagent": 0.2, "summarizer": 0.3,
-    "frontend": 0.3, "ml-specialist": 0.2,
+    "orchestrator": 0.2, "python-engineer": 0.2, "db-architect": 0.2,
+    "structured-engineer": 0.2, "docs-writer": 0.3, "bulk-processor": 0.3,
+    "validator": 0.1, "researcher": 0.3, "frontend-engineer": 0.3,
+    "devops": 0.2, "ml-specialist": 0.2, "security-reviewer": 0.1,
+    "git-manager": 0.2, "test-engineer": 0.2, "prompt-engineer": 0.3,
 }
 
 
@@ -193,13 +211,13 @@ def list_models() -> List[Dict]:
 def auto_assign_roles(models: List[Dict]) -> List[Tuple[str, Dict]]:
     """
     Assign roles to models based on size ranking.
-    Largest model -> orchestrator, 2nd -> code-analyst, etc.
+    Largest model -> orchestrator, 2nd -> python-engineer, etc.
     Returns list of (role, model_info) tuples.
     """
     if not models:
         return []
 
-    # Boost code models for code-analyst role
+    # Boost code models for python-engineer role
     scored = []
     for m in models:
         score = m["params"]
@@ -447,10 +465,10 @@ def safe_assign_roles(models: List[Dict]) -> List[Tuple[str, Dict]]:
 
     Strategy:
     1. Filter out embedding models (params <= 0) and broken models
-    2. Rank usable LLMs by size with code model boost for code-analyst
+    2. Rank usable LLMs by size with code model boost for python-engineer
     3. Assign to priority roles in order, duplicating models if needed
 
-    Priority order: orchestrator > code-analyst > validator > bulk-processor > subagent
+    Priority order: orchestrator > python-engineer > db-architect > validator > ...
     """
     broken_keywords = ["nemotron"]
 
@@ -479,8 +497,9 @@ def safe_assign_roles(models: List[Dict]) -> List[Tuple[str, Dict]]:
     scorer.sort(key=lambda x: x[0], reverse=True)
     ranked = [m for _, m in scorer]
 
-    # Assign in priority order
-    priority_roles = [r for r in ROLE_NAMES if r != "subagent"] + ["subagent"]
+    # Assign in priority order (least critical roles at the end)
+    least_critical = ["prompt-engineer", "git-manager", "docs-writer"]
+    priority_roles = [r for r in ROLE_NAMES if r not in least_critical] + least_critical
 
     assignments = []
     used_models = {}  # role -> model
@@ -492,11 +511,11 @@ def safe_assign_roles(models: List[Dict]) -> List[Tuple[str, Dict]]:
             model = ranked[-1]  # duplicate the smallest usable model
         assignments.append((role, model))
 
-    # Assign broken models (like Nemotron) to subagent if possible
+    # Assign broken models (like Nemotron) to least critical roles
     if broken:
         for i in range(len(assignments) - 1, -1, -1):
             role, _ = assignments[i]
-            if role in ("subagent", "bulk-processor"):
+            if role in least_critical:
                 assignments[i] = (role, broken[0])
                 break
 
