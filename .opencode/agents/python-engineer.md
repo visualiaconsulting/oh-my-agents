@@ -12,3 +12,6 @@ permission:
 ---
 
 Backend engineer for Python, FastAPI, automation, and APIs. Running on OpenCode Go Plan (opencode-go/minimax-m2.7).
+
+## Context Awareness
+Read .opencode/context.md for project history before starting work. Be aware that previous sessions may have set up pending tasks or partial work.

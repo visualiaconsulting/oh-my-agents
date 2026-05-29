@@ -31,8 +31,8 @@ permission:
 
 Central system orchestrator.
 """,
-        "code-analyst.md": """---
-name: code-analyst
+        "python-engineer.md": """---
+name: python-engineer
 description: Senior software engineer
 mode: subagent
 model: opencode-go/deepseek-v4-flash

@@ -278,6 +278,34 @@ def run_summarize(working_root=None):
     console.print(f"  [dim]Context updated in .opencode/context.md[/dim]")
 
 
+def run_inject_context(working_root=None):
+    """Inject session continuity into context.md and show status banner."""
+    from cli.ui import console
+    from continuity import ContinuityManager
+    from utils import resolve_working_root
+
+    if working_root is None:
+        working_root = resolve_working_root()
+
+    cm = ContinuityManager(project_root=working_root)
+
+    if cm.has_history():
+        banner = cm.get_status_banner()
+        if banner:
+            console.print(banner)
+
+        reentry = cm.get_reentry_prompt()
+        if reentry:
+            cm.inject_context_to_file()
+            console.print("[dim]Session context injected into .opencode/context.md[/dim]")
+    else:
+        from cli.ui import print_step
+        console.print("[yellow]New project — no session history yet.[/yellow]")
+        console.print("[dim]Enable auto-session from the dashboard: python main.py -> Sessions & continuity[/dim]")
+
+    cm.close()
+
+
 def run_skills_list(working_root=None):
     """List installed skills"""
     from cli.ui import console, print_skills_list
@@ -906,9 +934,19 @@ def show_plan_selector(working_root):
     import questionary
     from cli.ui import console, print_header, print_plan_selector, print_simple_menu
     from plan_manager import PlanManager
+    from continuity import ContinuityManager
 
     pm = PlanManager(project_root=working_root)
     wizard = None
+
+    # Auto-show continuity on dashboard start
+    cm = ContinuityManager(project_root=working_root)
+    if cm.has_history():
+        banner = cm.get_status_banner()
+        if banner:
+            console.print(banner)
+        cm.inject_context_to_file()
+    cm.close()
 
     while True:
         current_plan = pm.plan
@@ -1076,12 +1114,21 @@ Examples:
     parser.add_argument("--uninstall", action="store_true",
                         help="Remove global installation and optional data")
 
+    # Continuity
+    parser.add_argument("--inject-context", action="store_true",
+                        help="Inject session continuity into context.md and show status banner")
+
     args = parser.parse_args()
 
     from utils import resolve_working_root
     from cli.ui import console
 
     working_root = resolve_working_root(args.dir)
+
+    # Handle inject-context (used by context-inject.ps1 wrapper)
+    if args.inject_context:
+        run_inject_context(working_root)
+        return
 
     # Handle version
     if args.version:

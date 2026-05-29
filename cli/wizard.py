@@ -49,6 +49,19 @@ class SetupWizard:
         self.save_all()
         print_success("Configuration completed successfully.")
 
+        # Ask about auto-session continuity
+        import questionary
+        enable = questionary.confirm(
+            "Enable auto-session saving? This keeps context between sessions automatically.",
+            default=True
+        ).ask()
+        if enable:
+            from continuity import enable_auto_session
+            if enable_auto_session(self.project_root):
+                console.print("[dim]Auto-session enabled. Session history will be saved automatically.[/dim]")
+            else:
+                console.print("[yellow]Could not enable auto-session.[/yellow]")
+
     def propose_defaults(self):
         """Show the table of what will be configured by default"""
         from rich.table import Table
@@ -137,7 +150,7 @@ class SetupWizard:
         
         # Model selection with arrows
         available_models = self.pm.get_available_models()
-        default_model = self.pm.get_model("orchestrator" if is_primary else "code-analyst")
+        default_model = self.pm.get_model("orchestrator" if is_primary else "fallback")
         
         model = questionary.select(
             f"Select a model for plan '{self.pm.plan}':",

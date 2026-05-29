@@ -191,6 +191,24 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "  WARNING: Global install reported an error. Check the output above." -ForegroundColor Yellow
 }
 
+# ---------------------------------------------------------------------------
+# 6. Auto-session continuity
+# ---------------------------------------------------------------------------
+Write-Host ""
+Write-Host "[6/6] Session continuity..." -ForegroundColor Yellow
+Write-Host ""
+$enableAuto = Read-Host "Enable auto-session saving? This keeps context between sessions. (Y/n)"
+if ($enableAuto -eq "" -or $enableAuto -eq "y" -or $enableAuto -eq "Y") {
+    & $PythonCmd main.py --inject-context 2>&1 | Out-Null
+    $flagDir = Join-Path $PWD.Path ".opencode"
+    if (-not (Test-Path $flagDir)) {
+        $null = New-Item -ItemType Directory -Path $flagDir -Force
+    }
+    $flagFile = Join-Path $flagDir ".auto_session_enabled"
+    "# Auto-session saving enabled for $((Get-Item $PWD.Path).Name)`n# Created: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" | Out-File -FilePath $flagFile -Encoding utf8
+    Write-Host "  Auto-session enabled." -ForegroundColor Green
+}
+
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  Setup complete!" -ForegroundColor Green

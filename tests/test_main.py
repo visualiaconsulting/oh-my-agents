@@ -15,7 +15,7 @@ class TestLoadAgents:
         assert len(agents) == 2
         names = [a["name"] for a in agents]
         assert "@orchestrator" in names
-        assert "@code-analyst" in names
+        assert "@python-engineer" in names
 
     def test_agents_have_model(self, temp_project):
         from main import load_agents

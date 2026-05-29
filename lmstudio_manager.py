@@ -25,54 +25,21 @@ GLOBAL_AGENTS_DIR = Path.home() / ".opencode" / "agents"
 GLOBAL_BACKUP_DIR = Path.home() / ".opencode" / "agents-go-backup"
 
 ROLE_NAMES = [
-    "orchestrator", "python-engineer", "db-architect", "structured-engineer",
-    "docs-writer", "bulk-processor", "validator", "researcher",
-    "frontend-engineer", "devops", "ml-specialist", "security-reviewer",
-    "git-manager", "test-engineer", "prompt-engineer"
+    "orchestrator", "python-engineer"
 ]
 
 ROLE_DESCRIPTIONS = {
-    "orchestrator":         "Main coordinator — delegates tasks to sub-agents",
-    "python-engineer":      "Backend engineer — Python, FastAPI, automation, APIs",
-    "db-architect":         "PostgreSQL specialist — schemas, queries, performance",
-    "structured-engineer":  "JSON, YAML, OpenAPI, Docker Compose specialist",
-    "docs-writer":          "Technical documentation writer",
-    "bulk-processor":       "Bulk data processing and repetitive tasks",
-    "validator":            "QA specialist — validates and reviews code",
-    "researcher":           "Technical researcher — explores technologies",
-    "frontend-engineer":    "UI/UX specialist — React, Next.js, Tailwind",
-    "devops":               "Infrastructure — Docker, CI/CD, deployment",
-    "ml-specialist":        "ML and data pipeline specialist",
-    "security-reviewer":    "Security specialist — audits code and APIs",
-    "git-manager":          "Git specialist — commits, branches, changelogs",
-    "test-engineer":        "Testing specialist — pytest, unit/integration tests",
-    "prompt-engineer":      "Prompt designer — AI agent instructions",
+    "orchestrator":     "Main coordinator — delegates tasks to sub-agents",
+    "python-engineer":  "Backend engineer — Python, FastAPI, automation, APIs",
 }
 
 ROLE_PERMISSIONS = {
-    "orchestrator":         {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "allow"},
-    "python-engineer":      {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "db-architect":         {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "structured-engineer":  {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "docs-writer":          {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "bulk-processor":       {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "validator":            {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
-    "researcher":           {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "frontend-engineer":    {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "devops":               {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "ml-specialist":        {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "security-reviewer":    {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
-    "git-manager":          {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "test-engineer":        {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-    "prompt-engineer":      {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
+    "orchestrator":    {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "allow"},
+    "python-engineer": {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
 }
 
 ROLE_TEMPERATURES = {
-    "orchestrator": 0.2, "python-engineer": 0.2, "db-architect": 0.2,
-    "structured-engineer": 0.2, "docs-writer": 0.3, "bulk-processor": 0.3,
-    "validator": 0.1, "researcher": 0.3, "frontend-engineer": 0.3,
-    "devops": 0.2, "ml-specialist": 0.2, "security-reviewer": 0.1,
-    "git-manager": 0.2, "test-engineer": 0.2, "prompt-engineer": 0.3,
+    "orchestrator": 0.2, "python-engineer": 0.2,
 }
 
 
@@ -232,7 +199,8 @@ def auto_assign_roles(models: List[Dict]) -> List[Tuple[str, Dict]]:
     for i, role in enumerate(ROLE_NAMES):
         if i < len(ranked_models):
             assignments.append((role, ranked_models[i]))
-
+        else:
+            assignments.append((role, ranked_models[-1]))
     return assignments
 
 
@@ -468,7 +436,8 @@ def safe_assign_roles(models: List[Dict]) -> List[Tuple[str, Dict]]:
     2. Rank usable LLMs by size with code model boost for python-engineer
     3. Assign to priority roles in order, duplicating models if needed
 
-    Priority order: orchestrator > python-engineer > db-architect > validator > ...
+    Priority order: orchestrator > python-engineer
+    When only 1 usable LLM, it is assigned to orchestrator; python-engineer duplicates it.
     """
     broken_keywords = ["nemotron"]
 
@@ -497,13 +466,11 @@ def safe_assign_roles(models: List[Dict]) -> List[Tuple[str, Dict]]:
     scorer.sort(key=lambda x: x[0], reverse=True)
     ranked = [m for _, m in scorer]
 
-    # Assign in priority order (least critical roles at the end)
-    least_critical = ["prompt-engineer", "git-manager", "docs-writer"]
+    # Assign in priority order (least critical role at the end)
+    least_critical = ["python-engineer"]
     priority_roles = [r for r in ROLE_NAMES if r not in least_critical] + least_critical
 
     assignments = []
-    used_models = {}  # role -> model
-
     for i, role in enumerate(priority_roles):
         if i < len(ranked):
             model = ranked[i]

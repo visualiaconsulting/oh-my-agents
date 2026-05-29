@@ -334,7 +334,7 @@ class TestProjectDB:
         db.save_session({
             "session_id": "newer001",
             "timestamp": "2026-05-13 11:00:00",
-            "agent": "code-analyst",
+            "agent": "python-engineer",
             "summary": "Newer session",
             "log_file": "/tmp/new.log",
             "exit_code": 0,
@@ -349,7 +349,7 @@ class TestProjectDB:
 
         last = db.get_last_session()
         assert last is not None
-        assert last["agent"] == "code-analyst"
+        assert last["agent"] == "python-engineer"
         assert last["summary"] == "Newer session"
         assert last["session_id"] == "newer001"
 
@@ -434,7 +434,7 @@ class TestProjectDB:
         db.save_session({
             "session_id": "next_sess",
             "timestamp": "2026-05-13 11:00:00",
-            "agent": "code-analyst",
+            "agent": "python-engineer",
             "summary": "Next session",
             "log_file": "/tmp/next.log",
             "exit_code": 0,
@@ -744,7 +744,7 @@ class TestContinuityManager:
         db.save_session({
             "session_id": "err_reentry",
             "timestamp": "2026-05-13 10:00:00",
-            "agent": "code-analyst",
+            "agent": "python-engineer",
             "summary": "Session with errors",
             "log_file": "/tmp/err.log",
             "exit_code": 1,

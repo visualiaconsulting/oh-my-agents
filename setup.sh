@@ -92,7 +92,20 @@ echo "[4/4] Starting system..."
 echo ""
 $PYTHON_CMD main.py
 
-# 7. Suggest global install for future use
+# 5. Auto-session continuity
+echo ""
+echo "[5/5] Session continuity..."
+echo ""
+read -p "Enable auto-session saving? This keeps context between sessions. (Y/n): " ENABLE_AUTO
+if [ "$ENABLE_AUTO" = "" ] || [ "$ENABLE_AUTO" = "y" ] || [ "$ENABLE_AUTO" = "Y" ]; then
+    $PYTHON_CMD main.py --inject-context 2>/dev/null
+    mkdir -p ".opencode"
+    echo "# Auto-session saving enabled for $(basename $(pwd))" > ".opencode/.auto_session_enabled"
+    echo "# Created: $(date '+%Y-%m-%d %H:%M:%S')" >> ".opencode/.auto_session_enabled"
+    echo "  Auto-session enabled."
+fi
+
+# 6. Suggest global install for future use
 echo ""
 echo "========================================"
 echo "  Tip: Install globally?"

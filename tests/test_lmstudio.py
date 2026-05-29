@@ -64,25 +64,25 @@ class TestAutoAssignRoles:
     def test_single_model(self):
         models = [self._make_model("test-7b", 7.0)]
         result = auto_assign_roles(models)
-        assert len(result) == 1
+        assert len(result) == 2
         assert result[0][0] == "orchestrator"
+        assert result[1][0] == "python-engineer"
 
-    def test_eight_models_ordered_by_size(self):
+    def test_more_models_than_roles(self):
         models = [self._make_model(f"model-{i}b", float(i)) for i in range(1, 9)]
         result = auto_assign_roles(models)
-        assert len(result) == 8
+        assert len(result) == 2
         # Largest (8B) should be orchestrator
         assert result[0][0] == "orchestrator"
         assert result[0][1]["id"] == "model-8b"
-        # Smallest (1B) should be last assigned role
-        assert result[-1][1]["id"] == "model-1b"
+        # Second largest (7B) should be python-engineer
+        assert result[1][0] == "python-engineer"
+        assert result[1][1]["id"] == "model-7b"
 
     def test_fewer_than_fifteen_models(self):
         models = [self._make_model(f"model-{i}b", float(i)) for i in range(1, 4)]
         result = auto_assign_roles(models)
-        assert len(result) == 3
-        roles = [r[0] for r in result]
-        assert roles == ["orchestrator", "python-engineer", "db-architect"]
+        assert len(result) == 2
 
     def test_code_model_boost(self):
         # A 6B code model should beat a 7B non-code for python-engineer
@@ -156,7 +156,7 @@ class TestSafeAssignRoles:
             if "nemotron" in model["id"]:
                 nemotron_role = role
                 break
-        assert nemotron_role in ["prompt-engineer", "git-manager", "docs-writer"]
+        assert nemotron_role == "python-engineer"
 
     def test_empty_models(self):
         assert safe_assign_roles([]) == []
@@ -164,7 +164,7 @@ class TestSafeAssignRoles:
     def test_only_broken_models_falls_back(self):
         models = [self._make_model("nemotron-4b", 4.0)]
         result = safe_assign_roles(models)
-        assert len(result) == 1
+        assert len(result) == 2
         assert result[0][1]["id"] == "nemotron-4b"
 
 

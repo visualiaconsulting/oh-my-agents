@@ -56,24 +56,12 @@ class PlanManager:
         },
         "lmstudio": {
             "orchestrator": "lmstudio/default-orchestrator",
-            "code-analyst": "lmstudio/default-code-analyst",
-            "validator": "lmstudio/default-validator",
-            "bulk-processor": "lmstudio/default-bulk",
-            "subagent": "lmstudio/default-subagent",
-            "summarizer": "lmstudio/default-summarizer",
-            "frontend": "lmstudio/default-frontend",
-            "ml-specialist": "lmstudio/default-ml",
+            "python-engineer": "lmstudio/default-python-engineer",
             "fallback": "lmstudio/default-fallback"
         },
         "copilot": {
             "orchestrator": "copilot/claude-sonnet-4",
-            "code-analyst": "copilot/gpt-4o",
-            "validator": "copilot/claude-3.5-haiku",
-            "bulk-processor": "copilot/gemini-2.5-flash",
-            "subagent": "copilot/claude-3.5-haiku",
-            "summarizer": "copilot/claude-3.5-haiku",
-            "frontend": "copilot/gpt-4o",
-            "ml-specialist": "copilot/gemini-2.5-flash",
+            "python-engineer": "copilot/gpt-4o",
             "fallback": "copilot/claude-3.5-haiku",
             "all_available": [
                 "copilot/claude-sonnet-4",
@@ -84,13 +72,7 @@ class PlanManager:
         },
         "openrouter": {
             "orchestrator": "openrouter/google/gemini-2.5-flash",
-            "code-analyst": "openrouter/deepseek/deepseek-v3",
-            "validator": "openrouter/google/gemini-2.5-flash",
-            "bulk-processor": "openrouter/meta-llama/llama-3.3-70b",
-            "subagent": "openrouter/google/gemini-2.5-flash",
-            "summarizer": "openrouter/google/gemini-2.5-flash",
-            "frontend": "openrouter/deepseek/deepseek-v3",
-            "ml-specialist": "openrouter/google/gemini-2.5-flash",
+            "python-engineer": "openrouter/deepseek/deepseek-v3",
             "fallback": "openrouter/google/gemini-2.5-flash",
             "all_available": [
                 "openrouter/google/gemini-2.5-flash",
@@ -201,7 +183,9 @@ class PlanManager:
         plan_display = self.get_plan_display_name()
 
         for role in self.ALL_ROLES:
-            model = models.get(role, models.get("fallback", ""))
+            model = models.get(role)
+            if model is None:
+                continue  # This role is not defined in the current plan
             perms = self.ROLE_PERMISSIONS[role]
             desc = self.ROLE_DESCRIPTIONS[role]
             mode = "primary" if role == "orchestrator" else "subagent"
