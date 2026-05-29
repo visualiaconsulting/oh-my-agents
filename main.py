@@ -278,34 +278,6 @@ def run_summarize(working_root=None):
     console.print(f"  [dim]Context updated in .opencode/context.md[/dim]")
 
 
-def run_inject_context(working_root=None):
-    """Inject session continuity into context.md and show status banner."""
-    from cli.ui import console
-    from continuity import ContinuityManager
-    from utils import resolve_working_root
-
-    if working_root is None:
-        working_root = resolve_working_root()
-
-    cm = ContinuityManager(project_root=working_root)
-
-    if cm.has_history():
-        banner = cm.get_status_banner()
-        if banner:
-            console.print(banner)
-
-        reentry = cm.get_reentry_prompt()
-        if reentry:
-            cm.inject_context_to_file()
-            console.print("[dim]Session context injected into .opencode/context.md[/dim]")
-    else:
-        from cli.ui import print_step
-        console.print("[yellow]New project — no session history yet.[/yellow]")
-        console.print("[dim]Enable auto-session from the dashboard: python main.py -> Sessions & continuity[/dim]")
-
-    cm.close()
-
-
 def run_skills_list(working_root=None):
     """List installed skills"""
     from cli.ui import console, print_skills_list
@@ -725,221 +697,21 @@ def activate_openrouter_plan(working_root):
     return _pick_models_for_plan("openrouter", working_root)
 
 
-def show_plan_contextual_menu(working_root, current_plan):
-    """Show contextual actions after activating a plan."""
-    import questionary
-    from cli.ui import console, print_dashboard_header, print_simple_menu, print_agent_status
-    from plan_manager import PlanManager
-
-    while True:
-        pm = PlanManager(project_root=working_root)
-        agents = load_agents(working_root=working_root)
-        plan_display = pm.get_plan_display_name()
-        agent_count = len(agents)
-
-        print_dashboard_header(current_plan, agent_count, plan_display)
-
-        if agents:
-            print_agent_status(agents)
-            console.print()
-
-        print_simple_menu("Actions", [
-            ("1", "Run diagnostics"),
-            ("2", "Sessions & continuity"),
-            ("3", "Skills & MCP tools"),
-            ("4", "Check for updates"),
-            ("5", "Switch to another provider"),
-            ("6", "Install globally"),
-            ("7", "Uninstall globally"),
-            ("0", "Exit"),
-        ])
-
-        choice = questionary.select(
-            "Select an action:",
-            choices=[
-                "1 - Run diagnostics",
-                "2 - Sessions & continuity",
-                "3 - Skills & MCP tools",
-                "4 - Check for updates",
-                "5 - Switch to another provider",
-                "6 - Install globally",
-                "7 - Uninstall globally",
-                "0 - Exit",
-            ]
-        ).ask()
-
-        if choice is None or choice.startswith("0"):
-            console.print("\n[dim]Goodbye![/dim]")
-            break
-
-        elif choice.startswith("1"):
-            run_doctor(working_root=working_root)
-
-        elif choice.startswith("2"):
-            show_sessions_submenu(working_root)
-
-        elif choice.startswith("3"):
-            show_tools_submenu(working_root)
-
-        elif choice.startswith("4"):
-            run_check_updates()
-            from update_manager import check_for_updates
-            has_update, _, latest = check_for_updates()
-            if has_update:
-                do_update = questionary.confirm(f"Install v{latest} now?", default=True).ask()
-                if do_update:
-                    run_update_command()
-
-        elif choice.startswith("5"):
-            return True  # signal to go back to plan selector
-
-        elif choice.startswith("6"):
-            install_global()
-
-        elif choice.startswith("7"):
-            run_uninstall()
-
-    return False
-
-
-def show_sessions_submenu(working_root):
-    """Session and continuity submenu."""
-    import questionary
-    from cli.ui import console, print_simple_menu
-    from utils import resolve_working_root
-
-    while True:
-        print_simple_menu("Sessions & Continuity", [
-            ("1", "View session history"),
-            ("2", "View last session"),
-            ("3", "Scan logs & save session"),
-            ("4", "Project status"),
-            ("5", "Project health"),
-            ("6", "Continue last session"),
-            ("0", "Back to main menu"),
-        ])
-
-        choice = questionary.select(
-            "Select:",
-            choices=[
-                "1 - View session history",
-                "2 - View last session",
-                "3 - Scan logs & save session",
-                "4 - Project status",
-                "5 - Project health",
-                "6 - Continue last session",
-                "0 - Back to main menu",
-            ]
-        ).ask()
-
-        if choice is None or choice.startswith("0"):
-            break
-        elif choice.startswith("1"):
-            run_sessions_list(working_root=working_root)
-        elif choice.startswith("2"):
-            run_session_status(working_root=working_root)
-        elif choice.startswith("3"):
-            run_summarize(working_root=working_root)
-        elif choice.startswith("4"):
-            from continuity import ContinuityManager
-            cm = ContinuityManager(project_root=working_root)
-            banner = cm.get_status_banner()
-            if banner:
-                console.print(f"\n{banner}\n")
-            else:
-                console.print("[dim]No session history yet.[/dim]")
-            cm.close()
-        elif choice.startswith("5"):
-            from continuity import ContinuityManager
-            cm = ContinuityManager(project_root=working_root)
-            health = cm.get_project_health()
-            from cli.ui import console
-            console.print(f"\n[bold cyan]=== Project Health ===[/bold cyan]\n")
-            console.print(f"  Status:       {health.get('health_status', 'unknown')}")
-            console.print(f"  Sessions:     {health.get('total_sessions', 0)}")
-            console.print(f"  Total errors: {health.get('total_errors', 0)}")
-            console.print(f"  Last active:  {health.get('last_active', 'never')}")
-            cm.close()
-        elif choice.startswith("6"):
-            from continuity import ContinuityManager
-            cm = ContinuityManager(project_root=working_root)
-            if cm.has_history():
-                prompt = cm.get_reentry_prompt()
-                if prompt:
-                    console.print(f"\n[bold cyan]=== Continuity Context ===[/bold cyan]\n")
-                    console.print(prompt)
-            else:
-                console.print("[yellow]No session history found.[/yellow]")
-            cm.close()
-
-
-def show_tools_submenu(working_root):
-    """Skills and MCP tools submenu."""
-    import questionary
-    from cli.ui import console, print_simple_menu
-    import questionary
-
-    while True:
-        print_simple_menu("Skills & MCP Tools", [
-            ("1", "View installed skills"),
-            ("2", "Search skills"),
-            ("3", "Install a skill"),
-            ("4", "Remove a skill"),
-            ("5", "Recommend skills for project"),
-            ("6", "View MCP servers"),
-            ("0", "Back to main menu"),
-        ])
-
-        choice = questionary.select(
-            "Select:",
-            choices=[
-                "1 - View installed skills",
-                "2 - Search skills",
-                "3 - Install a skill",
-                "4 - Remove a skill",
-                "5 - Recommend skills for project",
-                "6 - View MCP servers",
-                "0 - Back to main menu",
-            ]
-        ).ask()
-
-        if choice is None or choice.startswith("0"):
-            break
-        elif choice.startswith("1"):
-            run_skills_list(working_root=working_root)
-        elif choice.startswith("2"):
-            query = questionary.text("Search query:").ask()
-            if query:
-                run_skills_search(query, working_root=working_root)
-        elif choice.startswith("3"):
-            identifier = questionary.text("Skill identifier (owner/repo/name):").ask()
-            if identifier:
-                run_skills_install(identifier, working_root=working_root)
-        elif choice.startswith("4"):
-            name = questionary.text("Skill name to remove:").ask()
-            if name:
-                run_skills_remove(name, working_root=working_root)
-        elif choice.startswith("5"):
-            run_skills_recommend(working_root=working_root)
-        elif choice.startswith("6"):
-            run_mcp_status(working_root=working_root)
-
 
 # ---------------------------------------------------------------------------
 # Main dashboard / plan selector
 # ---------------------------------------------------------------------------
 
-def show_plan_selector(working_root):
-    """Main interactive plan selector dashboard."""
+def show_dashboard(working_root):
+    """Unified single-level dashboard. Replaces all submenus."""
     import questionary
-    from cli.ui import console, print_header, print_plan_selector, print_simple_menu
+    from cli.ui import console, print_header, print_plan_panel, print_action_menu, print_agent_status
     from plan_manager import PlanManager
     from continuity import ContinuityManager
 
     pm = PlanManager(project_root=working_root)
-    wizard = None
 
-    # Auto-show continuity on dashboard start
+    # Auto-show continuity on dashboard start (once)
     cm = ContinuityManager(project_root=working_root)
     if cm.has_history():
         banner = cm.get_status_banner()
@@ -951,13 +723,8 @@ def show_plan_selector(working_root):
     while True:
         current_plan = pm.plan
         agents = load_agents(working_root=working_root)
-        plan_display = pm.get_plan_display_name()
-        agent_count = len(agents)
 
         print_header()
-
-        from cli.ui import print_dashboard_header
-        print_dashboard_header(current_plan, agent_count, plan_display)
 
         plans_info = {}
         for key in ["go", "lmstudio", "copilot", "openrouter"]:
@@ -971,102 +738,184 @@ def show_plan_selector(working_root):
                 status = "set up"
             plans_info[key] = {"name": name, "description": desc, "status_label": status}
 
-        print_plan_selector(current_plan, plans_info)
+        print_plan_panel(current_plan, plans_info)
 
-        print_simple_menu("Quick Actions", [
-            ("1", "View agent status"),
-            ("2", "Run diagnostics"),
-            ("3", "Tools & advanced"),
-            ("0", "Exit"),
-        ])
+        if agents:
+            print_agent_status(agents)
+
+        actions = {
+            "Provider": [
+                ("1", "Switch provider"),
+            ],
+            "Agent Management": [
+                ("2", "View agent status"),
+                ("3", "Install globally"),
+            ],
+            "Sessions & Tools": [
+                ("4", "Sessions & continuity"),
+                ("5", "Skills & MCP tools"),
+            ],
+            "System": [
+                ("6", "Diagnostics"),
+                ("7", "Check for updates"),
+            ],
+        }
+        print_action_menu(actions)
 
         choice = questionary.select(
-            "What would you like to do?",
+            "Select an option:",
             choices=[
-                f"Switch to Go plan" if current_plan != "go" else "Go plan (active)",
-                f"Switch to LM Studio" if current_plan != "lmstudio" else "LM Studio (active)",
-                f"Switch to GitHub Copilot" if current_plan != "copilot" else "GitHub Copilot (active)",
-                f"Switch to OpenRouter" if current_plan != "openrouter" else "OpenRouter (active)",
-                questionary.Separator(),
-                "View agent status",
-                "Run diagnostics",
-                "Tools & advanced",
-                "Exit",
+                {"name": "Switch provider", "value": "1"},
+                {"name": "View agent status", "value": "2"},
+                {"name": "Install globally", "value": "3"},
+                {"name": "Sessions & continuity", "value": "4"},
+                {"name": "Skills & MCP tools", "value": "5"},
+                {"name": "Diagnostics", "value": "6"},
+                {"name": "Check for updates", "value": "7"},
+                {"name": "Exit", "value": "0"},
             ]
         ).ask()
 
-        if choice is None or choice == "Exit":
+        if choice is None or choice == "0":
             console.print("\n[dim]Goodbye![/dim]")
             break
 
-        elif "Go plan" in choice:
-            from cli.wizard import SetupWizard
-            wizard = SetupWizard(project_root=working_root)
-            agents = activate_go_plan(working_root, wizard)
+        if choice == "1":
+            _switch_provider(working_root, pm)
+        elif choice == "2":
             if agents:
-                should_switch = show_plan_contextual_menu(working_root, "go")
-                if should_switch:
-                    continue
-                else:
-                    break
-
-        elif "LM Studio" in choice and "(active)" not in choice:
-            agents = activate_lmstudio_plan(working_root)
-            if agents:
-                should_switch = show_plan_contextual_menu(working_root, "lmstudio")
-                if should_switch:
-                    continue
-                else:
-                    break
-
-        elif "GitHub Copilot" in choice and "(active)" not in choice:
-            agents = activate_copilot_plan(working_root)
-            if agents:
-                should_switch = show_plan_contextual_menu(working_root, "copilot")
-                if should_switch:
-                    continue
-                else:
-                    break
-
-        elif "OpenRouter" in choice and "(active)" not in choice:
-            agents = activate_openrouter_plan(working_root)
-            if agents:
-                should_switch = show_plan_contextual_menu(working_root, "openrouter")
-                if should_switch:
-                    continue
-                else:
-                    break
-
-        elif "(active)" in choice:
-            # Show contextual menu for active plan
-            current = "go" if "Go" in choice else "lmstudio" if "LM" in choice else "copilot" if "Copilot" in choice else "openrouter"
-            should_switch = show_plan_contextual_menu(working_root, current)
-            if should_switch:
-                continue
-            else:
-                break
-
-        elif choice == "View agent status":
-            agents = load_agents(working_root=working_root)
-            if agents:
-                from cli.ui import print_agent_status
                 print_agent_status(agents)
             else:
                 console.print("[yellow]No agents configured. Select a plan first.[/yellow]")
-
-        elif choice == "Run diagnostics":
+        elif choice == "3":
+            install_global()
+        elif choice == "4":
+            _sessions_menu(working_root)
+        elif choice == "5":
+            _tools_menu(working_root)
+        elif choice == "6":
             run_doctor(working_root=working_root)
+        elif choice == "7":
+            _check_and_offer_update()
 
-        elif choice == "Tools & advanced":
-            show_tools_submenu(working_root)
+        console.print("\n[dim](Press Enter to continue...)[/dim]")
+        try:
+            input()
+        except (EOFError, KeyboardInterrupt):
+            break
 
-        # Pause before redrawing
-        if choice not in [None, "Exit"]:
-            console.print("\n[dim](Press any key to continue...)[/dim]")
-            try:
-                input()
-            except (EOFError, KeyboardInterrupt):
-                break
+
+def _switch_provider(working_root, pm):
+    """Switch to a different provider in one step."""
+    import questionary
+    from cli.ui import console
+
+    plan = questionary.select(
+        "Select a provider:",
+        choices=[
+            {"name": "OpenCode Go Plan (cloud)", "value": "go"},
+            {"name": "LM Studio (local)", "value": "lmstudio"},
+            {"name": "GitHub Copilot", "value": "copilot"},
+            {"name": "OpenRouter", "value": "openrouter"},
+        ]
+    ).ask()
+
+    if plan is None:
+        return
+
+    if plan == "go":
+        from cli.wizard import SetupWizard
+        wizard = SetupWizard(project_root=working_root)
+        activate_go_plan(working_root, wizard)
+    elif plan == "lmstudio":
+        activate_lmstudio_plan(working_root)
+    elif plan == "copilot":
+        activate_copilot_plan(working_root)
+    elif plan == "openrouter":
+        activate_openrouter_plan(working_root)
+
+
+def _sessions_menu(working_root):
+    """Simplified sessions submenu."""
+    import questionary
+    from cli.ui import console
+
+    choice = questionary.select(
+        "Sessions & continuity:",
+        choices=[
+            {"name": "View session history", "value": "list"},
+            {"name": "Continue last session", "value": "continue"},
+            {"name": "Project health", "value": "health"},
+            {"name": "Back", "value": "back"},
+        ]
+    ).ask()
+
+    if choice is None or choice == "back":
+        return
+
+    if choice == "list":
+        run_sessions_list(working_root=working_root)
+    elif choice == "continue":
+        from continuity import ContinuityManager
+        cm = ContinuityManager(project_root=working_root)
+        if cm.has_history():
+            prompt = cm.get_reentry_prompt()
+            if prompt:
+                console.print(f"\n[bold cyan]=== Continuity Context ===[/bold cyan]\n")
+                console.print(prompt)
+        else:
+            console.print("[yellow]No session history found.[/yellow]")
+        cm.close()
+    elif choice == "health":
+        from continuity import ContinuityManager
+        cm = ContinuityManager(project_root=working_root)
+        health = cm.get_project_health()
+        console.print(f"\n[bold cyan]=== Project Health ===[/bold cyan]\n")
+        console.print(f"  Status:       {health.get('health_status', 'unknown')}")
+        console.print(f"  Sessions:     {health.get('total_sessions', 0)}")
+        console.print(f"  Total errors: {health.get('total_errors', 0)}")
+        console.print(f"  Last active:  {health.get('last_active', 'never')}")
+        cm.close()
+
+
+def _tools_menu(working_root):
+    """Simplified tools submenu."""
+    import questionary
+    from cli.ui import console
+
+    choice = questionary.select(
+        "Skills & MCP tools:",
+        choices=[
+            {"name": "View installed skills", "value": "list"},
+            {"name": "Search & install skills", "value": "search"},
+            {"name": "View MCP servers", "value": "mcp"},
+            {"name": "Back", "value": "back"},
+        ]
+    ).ask()
+
+    if choice is None or choice == "back":
+        return
+
+    if choice == "list":
+        run_skills_list(working_root=working_root)
+    elif choice == "search":
+        query = questionary.text("Search skills:").ask()
+        if query:
+            run_skills_search(query, working_root=working_root)
+    elif choice == "mcp":
+        run_mcp_status(working_root=working_root)
+
+
+def _check_and_offer_update():
+    """Check for updates and offer to install."""
+    import questionary
+    from cli.ui import console
+    run_check_updates()
+    has_update, _, latest = check_for_updates()
+    if has_update:
+        do_update = questionary.confirm(f"Install v{latest} now?", default=True).ask()
+        if do_update:
+            run_update_command()
 
 
 # ---------------------------------------------------------------------------
@@ -1079,11 +928,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py                    Interactive plan selector dashboard
+  python main.py                    Interactive dashboard
   python main.py --plan go          Switch to Go plan (default)
   python main.py --plan lmstudio    Detect LM Studio and install agents
   python main.py --doctor           Run system diagnostics
-  python main.py --status           Show current plan and agents
         """
     )
 
@@ -1095,8 +943,6 @@ Examples:
                         help="Run the Go plan setup wizard")
     parser.add_argument("--doctor", action="store_true",
                         help="Run system diagnostics")
-    parser.add_argument("--status", action="store_true",
-                        help="Show current plan and agent status")
     parser.add_argument("--dir", type=str, default=None,
                         help="Set the project root directory (overrides auto-detection)")
     parser.add_argument("--version", action="store_true",
@@ -1114,21 +960,12 @@ Examples:
     parser.add_argument("--uninstall", action="store_true",
                         help="Remove global installation and optional data")
 
-    # Continuity
-    parser.add_argument("--inject-context", action="store_true",
-                        help="Inject session continuity into context.md and show status banner")
-
     args = parser.parse_args()
 
     from utils import resolve_working_root
     from cli.ui import console
 
     working_root = resolve_working_root(args.dir)
-
-    # Handle inject-context (used by context-inject.ps1 wrapper)
-    if args.inject_context:
-        run_inject_context(working_root)
-        return
 
     # Handle version
     if args.version:
@@ -1168,18 +1005,6 @@ Examples:
         run_doctor(working_root=working_root)
         return
 
-    # Status
-    if args.status:
-        from plan_manager import PlanManager
-        pm = PlanManager(project_root=working_root)
-        agents = load_agents(working_root=working_root)
-        plan_display = pm.get_plan_display_name()
-        from cli.ui import print_dashboard_header, print_agent_status
-        print_dashboard_header(pm.plan, len(agents), plan_display)
-        if agents:
-            print_agent_status(agents)
-        return
-
     # Setup wizard (Go plan)
     if args.setup:
         from cli.wizard import SetupWizard
@@ -1212,8 +1037,8 @@ Examples:
                 print_success(f"OpenRouter plan active with {len(agents)} agent(s)")
         return
 
-    # No flags: show interactive plan selector
-    show_plan_selector(working_root)
+    # No flags: show interactive dashboard
+    show_dashboard(working_root)
 
 
 if __name__ == "__main__":

@@ -236,6 +236,32 @@ Alternatively, download a model with a known-good template from the [Recommended
 
 ## 📝 Changelog
 
+### v1.9.0 — Unified Dashboard, Simplified Menu (May 2026)
+
+**Unified single-level dashboard:**
+- Replaced 3-level menu system (plan selector → contextual menu → submenus) with a single unified dashboard
+- 6 direct actions organized in sections: Provider, Agent Management, Sessions & Tools, System
+- Submenus reduced to max 4 options each (Sessions: 4, Skills: 4)
+- "Switch provider" is now a 1-step action (select provider → activate)
+
+**Removed features:**
+- `--status` flag (replaced by dashboard)
+- `--inject-context` flag (already automatic)
+- `show_plan_contextual_menu()`, `show_sessions_submenu()`, `show_tools_submenu()`
+- `run_inject_context()` function
+- `print_dashboard_header()`, `print_plan_selector()`, `print_simple_menu()` from ui.py
+
+**New UI components:**
+- `print_plan_panel()` — decorative provider status panel
+- `print_action_menu()` — grouped action menu with sections
+- `print_diagnostic_panel()` — combined system + project diagnostics
+
+**Files modified:**
+- `cli/ui.py` — New components, removed old ones
+- `main.py` — `show_dashboard()`, `_switch_provider()`, `_sessions_menu()`, `_tools_menu()`, `_check_and_offer_update()`
+
+**Tests:** 178 passing (unchanged)
+
 ### v1.8.0 — Dashboard-First CLI, Copilot & OpenRouter Plans (May 2026)
 
 **Dashboard-first interactive menu:**

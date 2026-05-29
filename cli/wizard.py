@@ -50,7 +50,6 @@ class SetupWizard:
         print_success("Configuration completed successfully.")
 
         # Ask about auto-session continuity
-        import questionary
         enable = questionary.confirm(
             "Enable auto-session saving? This keeps context between sessions automatically.",
             default=True

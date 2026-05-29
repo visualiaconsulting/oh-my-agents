@@ -5,9 +5,7 @@ from rich.table import Table
 from rich.text import Text
 from rich.theme import Theme
 from rich.align import Align
-from rich.columns import Columns
-from rich.layout import Layout
-from rich.box import ROUNDED, MINIMAL, HEAVY_HEAD
+from rich.box import ROUNDED, MINIMAL
 
 custom_theme = Theme({
     "info": "cyan",
@@ -51,50 +49,59 @@ def print_header():
     console.print(panel)
 
 
-def print_dashboard_header(current_plan: str, agent_count: int, plan_display: str):
-    """Compact status bar showing current plan and agent count."""
-    console.print()
-    status = f"[bold cyan]Current:[/bold cyan] {plan_display}   [bold cyan]Agents:[/bold cyan] {agent_count}   [bold cyan]Plan:[/bold cyan] {current_plan}"
-    console.print(Panel(status, border_style="accent", padding=(1, 2), box=HEAVY_HEAD))
-    console.print()
-
-
-def print_plan_selector(current_plan: str, plans: dict):
-    """Display an interactive-style plan selector panel.
-
-    plans: dict of {plan_key: {name, description, status_label}}
-    """
-    rows = []
+def print_plan_panel(current_plan: str, plans: dict):
+    """Decorative panel showing active plan and available providers."""
+    lines = []
     for key, info in plans.items():
         name = info["name"]
         desc = info["description"]
-        status = info["status_label"]
+        status = info.get("status_label", "")
         if key == current_plan:
-            line = f"  [plan_active]{'■'} {name:<30} ACTIVE[/plan_active]"
+            lines.append(f"  [plan_active]● {name}  (active)[/plan_active]")
         else:
-            line = f"  [plan_inactive]{'□'} {name:<30}[/plan_inactive] [yellow]{status}[/yellow]"
-        rows.append(line)
-        rows.append(f"     [dim]{desc}[/dim]")
-        rows.append("")
-
-    text = Text.from_markup("\n".join(rows))
-    panel = Panel(text, title="[bold]Select your AI Provider[/bold]", border_style="accent", box=ROUNDED, padding=(1, 2))
+            lines.append(f"  [plan_inactive]○ {name}[/plan_inactive]  [yellow]{status}[/yellow]")
+        lines.append(f"     [dim]{desc}[/dim]")
+    text = Text.from_markup("\n".join(lines))
+    panel = Panel(text, title="[bold]Provider[/bold]", border_style="dim", box=ROUNDED, padding=(0, 2))
     console.print(panel)
-    console.print()
 
 
-def print_simple_menu(title: str, items: list):
-    """Print a compact menu panel.
+def print_action_menu(actions: dict):
+    """Unified action menu with grouped sections.
 
-    items: list of (key, label) tuples. key is the number/letter, label is the text.
+    actions: dict of {section_title: [(key, label), ...]} or {"": [(key, label), ...]} for ungrouped.
     """
     lines = []
-    for key, label in items:
-        lines.append(f"  [accent][{key}][/accent] {label}")
+    for section, items in actions.items():
+        if section:
+            lines.append(f"  [dim]── {section} ──[/dim]")
+        for key, label in items:
+            lines.append(f"  [accent][{key}][/accent] {label}")
+        lines.append("")
     text = Text.from_markup("\n".join(lines))
-    panel = Panel(text, title=f"[bold]{title}[/bold]", border_style="dim", box=MINIMAL, padding=(1, 2))
+    panel = Panel(text, border_style="dim", box=MINIMAL, padding=(0, 2))
     console.print(panel)
-    console.print()
+
+
+def print_diagnostic_panel(checks: list):
+    """Combined diagnostics panel: system + project health.
+
+    checks: list of {"name": str, "ok": bool, "detail": str}
+    """
+    table = Table(show_header=True, header_style="bold cyan", box=MINIMAL)
+    table.add_column("Check", style="bold")
+    table.add_column("Status", justify="center")
+    table.add_column("Detail")
+    for item in checks:
+        status_style = "bold green" if item["ok"] else "bold red"
+        status_text = "✓" if item["ok"] else "✗"
+        table.add_row(
+            item["name"],
+            f"[{status_style}]{status_text}[/{status_style}]",
+            item.get("detail", ""),
+        )
+    panel = Panel(table, title="[bold]Diagnostics[/bold]", border_style="dim", box=ROUNDED)
+    console.print(panel)
 
 
 def print_agent_status(agents_data):

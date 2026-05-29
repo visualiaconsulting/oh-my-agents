@@ -470,7 +470,6 @@ oh-my-agents/
 ```
 python main.py                          Interactive provider dashboard
 python main.py --plan NAME              Switch to a provider (go, lmstudio, copilot, openrouter)
-python main.py --status                 Show current plan and agent status
 python main.py --doctor                 Run system diagnostics
 python main.py --setup                  Run Go plan setup wizard
 python main.py --install-global         Install agents globally to ~/.opencode/agents/

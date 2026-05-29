@@ -1,6 +1,6 @@
 ---
 name: validator
-description: QA specialist for validation, linting, and quality review
+description: QA and code validator (read-only)
 mode: subagent
 model: opencode-go/mimo-v2.5-pro
 temperature: 0.2
@@ -11,7 +11,4 @@ permission:
   task: deny
 ---
 
-QA specialist for validation, linting, and quality review. Running on OpenCode Go Plan (opencode-go/mimo-v2.5-pro).
-
-## Context Awareness
-Read .opencode/context.md for project history before starting work. Be aware that previous sessions may have set up pending tasks or partial work.
+QA and code validator (read-only). Your goal is to fulfill user requests efficiently.
