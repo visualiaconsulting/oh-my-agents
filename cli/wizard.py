@@ -69,21 +69,21 @@ class SetupWizard:
         table.add_column("Model", style="white")
         table.add_column("Role", style="dim")
 
-        table.add_row("orchestrator", "opencode-go/deepseek-v4-pro", "Primary")
+        table.add_row("orchestrator", "opencode-go/qwen3.7-plus", "Primary")
         table.add_row("python-engineer", "opencode-go/minimax-m2.7", "Python Backend")
         table.add_row("db-architect", "opencode-go/qwen3.6-plus", "PostgreSQL")
         table.add_row("structured-engineer", "opencode-go/qwen3.5-plus", "JSON/YAML/OpenAPI")
-        table.add_row("docs-writer", "opencode-go/minimax-m2.5", "Documentation")
+        table.add_row("docs-writer", "opencode-go/mimo-v2.5", "Documentation")
         table.add_row("bulk-processor", "opencode-go/deepseek-v4-flash", "Bulk Processing")
-        table.add_row("validator", "opencode-go/mimo-v2.5-pro", "QA (read-only)")
+        table.add_row("validator", "opencode-go/deepseek-v4-pro", "QA (read-only)")
         table.add_row("researcher", "opencode-go/glm-5.1", "Tech Research")
         table.add_row("frontend-engineer", "opencode-go/qwen3.6-plus", "UI/UX")
         table.add_row("devops", "opencode-go/deepseek-v4-flash", "Docker/CI/CD")
         table.add_row("ml-specialist", "opencode-go/minimax-m2.7", "ML Pipelines")
-        table.add_row("security-reviewer", "opencode-go/mimo-v2.5-pro", "Security (read-only)")
+        table.add_row("security-reviewer", "opencode-go/minimax-m3", "Security (read-only)")
         table.add_row("git-manager", "opencode-go/deepseek-v4-flash", "Git/Repo")
-        table.add_row("test-engineer", "opencode-go/qwen3.5-plus", "Testing")
-        table.add_row("prompt-engineer", "opencode-go/glm-5.1", "Prompt Design")
+        table.add_row("test-engineer", "opencode-go/minimax-m3", "Testing")
+        table.add_row("prompt-engineer", "opencode-go/minimax-m3", "Prompt Design")
         table.add_row("fallback", "opencode-go/minimax-m2.5", "Speed/Recovery")
 
         console.print(table)
@@ -92,21 +92,21 @@ class SetupWizard:
         """Automatically configure the recommended agents"""
         self.agents = [] # Reset
         defaults = [
-            {"name": "orchestrator", "role": "primary", "model": "opencode-go/deepseek-v4-pro", "desc": "Central system orchestrator"},
+            {"name": "orchestrator", "role": "primary", "model": "opencode-go/qwen3.7-plus", "desc": "Central system orchestrator"},
             {"name": "python-engineer", "role": "subagent", "model": "opencode-go/minimax-m2.7", "desc": "Python backend engineer — FastAPI, automation, APIs"},
             {"name": "db-architect", "role": "subagent", "model": "opencode-go/qwen3.6-plus", "desc": "PostgreSQL specialist — schemas, queries, performance"},
             {"name": "structured-engineer", "role": "subagent", "model": "opencode-go/qwen3.5-plus", "desc": "JSON, YAML, OpenAPI, Docker Compose specialist"},
-            {"name": "docs-writer", "role": "subagent", "model": "opencode-go/minimax-m2.5", "desc": "Technical documentation writer"},
+            {"name": "docs-writer", "role": "subagent", "model": "opencode-go/mimo-v2.5", "desc": "Technical documentation writer"},
             {"name": "bulk-processor", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "Bulk data processing and repetitive tasks"},
-            {"name": "validator", "role": "subagent", "model": "opencode-go/mimo-v2.5-pro", "desc": "QA and code validator (read-only)"},
+            {"name": "validator", "role": "subagent", "model": "opencode-go/deepseek-v4-pro", "desc": "QA and code validator (read-only)"},
             {"name": "researcher", "role": "subagent", "model": "opencode-go/glm-5.1", "desc": "Technical researcher and framework comparison"},
             {"name": "frontend-engineer", "role": "subagent", "model": "opencode-go/qwen3.6-plus", "desc": "UI/UX specialist — React, Next.js, Tailwind"},
             {"name": "devops", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "Infrastructure — Docker, CI/CD, deployment"},
             {"name": "ml-specialist", "role": "subagent", "model": "opencode-go/minimax-m2.7", "desc": "ML and data pipeline specialist"},
-            {"name": "security-reviewer", "role": "subagent", "model": "opencode-go/mimo-v2.5-pro", "desc": "Security auditor (read-only)"},
+            {"name": "security-reviewer", "role": "subagent", "model": "opencode-go/minimax-m3", "desc": "Security auditor (read-only)"},
             {"name": "git-manager", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "Git repo management and changelogs"},
-            {"name": "test-engineer", "role": "subagent", "model": "opencode-go/qwen3.5-plus", "desc": "Testing specialist — pytest, unit/integration tests"},
-            {"name": "prompt-engineer", "role": "subagent", "model": "opencode-go/glm-5.1", "desc": "Prompt designer for AI agents and workflows"},
+            {"name": "test-engineer", "role": "subagent", "model": "opencode-go/minimax-m3", "desc": "Testing specialist — pytest, unit/integration tests"},
+            {"name": "prompt-engineer", "role": "subagent", "model": "opencode-go/minimax-m3", "desc": "Prompt designer for AI agents and workflows"},
         ]
 
         permissions_map = {
