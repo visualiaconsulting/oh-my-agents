@@ -75,21 +75,21 @@ The `PlanManager` is the logical brain that manages agent configuration based on
 
 | Role | Model |
 |:---|:---|
-| Orchestrator | `opencode-go/deepseek-v4-pro` |
+| Orchestrator | `opencode-go/qwen3.7-plus` |
 | Python Engineer | `opencode-go/minimax-m2.7` |
 | DB Architect | `opencode-go/qwen3.6-plus` |
 | Structured Engineer | `opencode-go/qwen3.5-plus` |
-| Docs Writer | `opencode-go/minimax-m2.5` |
+| Docs Writer | `opencode-go/mimo-v2.5` |
 | Bulk Processor | `opencode-go/deepseek-v4-flash` |
-| Validator | `opencode-go/mimo-v2.5-pro` |
+| Validator | `opencode-go/deepseek-v4-pro` |
 | Researcher | `opencode-go/glm-5.1` |
 | Frontend Engineer | `opencode-go/qwen3.6-plus` |
 | DevOps | `opencode-go/deepseek-v4-flash` |
 | ML Specialist | `opencode-go/minimax-m2.7` |
-| Security Reviewer | `opencode-go/mimo-v2.5-pro` |
+| Security Reviewer | `opencode-go/minimax-m3` |
 | Git Manager | `opencode-go/deepseek-v4-flash` |
-| Test Engineer | `opencode-go/qwen3.5-plus` |
-| Prompt Engineer | `opencode-go/glm-5.1` |
+| Test Engineer | `opencode-go/minimax-m3` |
+| Prompt Engineer | `opencode-go/minimax-m3` |
 | Fallback | `opencode-go/minimax-m2.5` |
 
 ### ~~`opencode.jsonc`~~ — Removed

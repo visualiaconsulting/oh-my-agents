@@ -65,7 +65,7 @@ class TestGetModel:
 
     def test_orchestrator_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("orchestrator") == "opencode-go/deepseek-v4-pro"
+        assert pm.get_model("orchestrator") == "opencode-go/qwen3.7-plus"
 
     def test_python_engineer_model(self, clean_env):
         pm = PlanManager()
@@ -81,7 +81,7 @@ class TestGetModel:
 
     def test_docs_writer_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("docs-writer") == "opencode-go/minimax-m2.5"
+        assert pm.get_model("docs-writer") == "opencode-go/mimo-v2.5"
 
     def test_bulk_processor_model(self, clean_env):
         pm = PlanManager()
@@ -89,7 +89,7 @@ class TestGetModel:
 
     def test_validator_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("validator") == "opencode-go/mimo-v2.5-pro"
+        assert pm.get_model("validator") == "opencode-go/deepseek-v4-pro"
 
     def test_researcher_model(self, clean_env):
         pm = PlanManager()
@@ -109,7 +109,7 @@ class TestGetModel:
 
     def test_security_reviewer_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("security-reviewer") == "opencode-go/mimo-v2.5-pro"
+        assert pm.get_model("security-reviewer") == "opencode-go/minimax-m3"
 
     def test_git_manager_model(self, clean_env):
         pm = PlanManager()
@@ -117,11 +117,11 @@ class TestGetModel:
 
     def test_test_engineer_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("test-engineer") == "opencode-go/qwen3.5-plus"
+        assert pm.get_model("test-engineer") == "opencode-go/minimax-m3"
 
     def test_prompt_engineer_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("prompt-engineer") == "opencode-go/glm-5.1"
+        assert pm.get_model("prompt-engineer") == "opencode-go/minimax-m3"
 
     def test_fallback_model(self, clean_env):
         pm = PlanManager()

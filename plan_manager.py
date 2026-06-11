@@ -28,21 +28,21 @@ class PlanManager:
 
     PLAN_MODELS = {
         "go": {
-            "orchestrator": "opencode-go/deepseek-v4-pro",
+            "orchestrator": "opencode-go/qwen3.7-plus",
             "python-engineer": "opencode-go/minimax-m2.7",
             "db-architect": "opencode-go/qwen3.6-plus",
             "structured-engineer": "opencode-go/qwen3.5-plus",
-            "docs-writer": "opencode-go/minimax-m2.5",
+            "docs-writer": "opencode-go/mimo-v2.5",
             "bulk-processor": "opencode-go/deepseek-v4-flash",
-            "validator": "opencode-go/mimo-v2.5-pro",
+            "validator": "opencode-go/deepseek-v4-pro",
             "researcher": "opencode-go/glm-5.1",
             "frontend-engineer": "opencode-go/qwen3.6-plus",
             "devops": "opencode-go/deepseek-v4-flash",
             "ml-specialist": "opencode-go/minimax-m2.7",
-            "security-reviewer": "opencode-go/mimo-v2.5-pro",
+            "security-reviewer": "opencode-go/minimax-m3",
             "git-manager": "opencode-go/deepseek-v4-flash",
-            "test-engineer": "opencode-go/qwen3.5-plus",
-            "prompt-engineer": "opencode-go/glm-5.1",
+            "test-engineer": "opencode-go/minimax-m3",
+            "prompt-engineer": "opencode-go/minimax-m3",
             "fallback": "opencode-go/minimax-m2.5",
             "all_available": [
                 "opencode-go/glm-5", "opencode-go/glm-5.1",
@@ -50,8 +50,10 @@ class PlanManager:
                 "opencode-go/mimo-v2-pro", "opencode-go/mimo-v2-omni",
                 "opencode-go/mimo-v2.5-pro", "opencode-go/mimo-v2.5",
                 "opencode-go/minimax-m2.5", "opencode-go/minimax-m2.7",
+                "opencode-go/minimax-m3",
                 "opencode-go/deepseek-v4-pro", "opencode-go/deepseek-v4-flash",
-                "opencode-go/qwen3.5-plus", "opencode-go/qwen3.6-plus"
+                "opencode-go/qwen3.5-plus", "opencode-go/qwen3.6-plus",
+                "opencode-go/qwen3.7-plus", "opencode-go/qwen3.7-max"
             ]
         },
         "lmstudio": {

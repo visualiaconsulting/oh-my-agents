@@ -111,7 +111,7 @@ class TestSetupDefaults:
         assert pe["permissions"]["edit"] == "allow"
         assert pe["permissions"]["bash"] == "allow"
 
-    def test_orchestrator_model_is_deepseek(self, temp_empty_project):
+    def test_orchestrator_model_is_qwen(self, temp_empty_project):
         wizard = SetupWizard(project_root=temp_empty_project)
         wizard.setup_defaults()
         orch = next(a for a in wizard.agents if a["name"] == "orchestrator")
