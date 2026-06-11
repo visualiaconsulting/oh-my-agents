@@ -2,7 +2,7 @@
 name: prompt-engineer
 description: Prompt designer for AI agents and workflows
 mode: subagent
-model: opencode-go/glm-5.1
+model: opencode-go/minimax-m3
 temperature: 0.2
 permission:
   edit: allow

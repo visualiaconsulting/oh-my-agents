@@ -2,7 +2,7 @@
 name: orchestrator
 description: Central system orchestrator
 mode: primary
-model: opencode-go/deepseek-v4-pro
+model: opencode-go/qwen3.7-plus
 temperature: 0.2
 permission:
   edit: deny

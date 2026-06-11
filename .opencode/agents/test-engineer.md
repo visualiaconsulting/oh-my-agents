@@ -2,7 +2,7 @@
 name: test-engineer
 description: Testing specialist — pytest, unit/integration tests
 mode: subagent
-model: opencode-go/qwen3.5-plus
+model: opencode-go/minimax-m3
 temperature: 0.2
 permission:
   edit: allow

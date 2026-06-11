@@ -2,7 +2,7 @@
 name: docs-writer
 description: Technical documentation writer
 mode: subagent
-model: opencode-go/minimax-m2.5
+model: opencode-go/mimo-v2.5
 temperature: 0.2
 permission:
   edit: allow

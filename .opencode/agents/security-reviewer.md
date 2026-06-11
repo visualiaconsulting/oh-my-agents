@@ -2,7 +2,7 @@
 name: security-reviewer
 description: Security auditor (read-only)
 mode: subagent
-model: opencode-go/mimo-v2.5-pro
+model: opencode-go/minimax-m3
 temperature: 0.2
 permission:
   edit: deny

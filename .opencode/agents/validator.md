@@ -2,7 +2,7 @@
 name: validator
 description: QA and code validator (read-only)
 mode: subagent
-model: opencode-go/mimo-v2.5-pro
+model: opencode-go/deepseek-v4-pro
 temperature: 0.2
 permission:
   edit: deny
