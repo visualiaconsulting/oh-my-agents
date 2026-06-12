@@ -73,23 +73,23 @@ python main.py
 
 | Agent | Model (Go Plan) | Role | Permissions |
 |-------|:----------------:|------|:-----------:|
-| **@orchestrator** | `deepseek-v4-pro` | 🎼 Coordinator — decomposes tasks, delegates to specialists | `read` `task` |
+| **@orchestrator** | `qwen3.7-plus` | 🎼 Coordinator — decomposes tasks, delegates to specialists | `read` `task` |
 | **@python-engineer** | `minimax-m2.7` | 🐍 Python Backend — FastAPI, automation, APIs | `edit` `bash` `read` |
 | **@db-architect** | `qwen3.6-plus` | 🗄️ PostgreSQL — schemas, queries, performance | `edit` `bash` `read` |
 | **@structured-engineer** | `qwen3.5-plus` | 📋 Structured Data — JSON, YAML, OpenAPI, Docker Compose | `edit` `bash` `read` |
-| **@docs-writer** | `minimax-m2.5` | 📝 Documentation — READMEs, manuals, wikis | `edit` `bash` `read` |
+| **@docs-writer** | `mimo-v2.5` | 📝 Documentation — READMEs, manuals, wikis | `edit` `bash` `read` |
 | **@bulk-processor** | `deepseek-v4-flash` | ⚡ Bulk Processing — repetitive, high-volume tasks | `edit` `bash` `read` |
-| **@validator** | `mimo-v2.5-pro` | 🔍 QA Specialist — validates quality, linting, precision | `read` only |
+| **@validator** | `deepseek-v4-pro` | 🔍 QA Specialist — validates quality, linting, precision | `read` only |
 | **@researcher** | `glm-5.1` | 🔬 Tech Research — explores technologies, compares frameworks | `edit` `bash` `read` |
 | **@frontend-engineer** | `qwen3.6-plus` | 🎨 UI/UX — React, Next.js, Tailwind | `edit` `bash` `read` |
 | **@devops** | `deepseek-v4-flash` | 🚀 Infrastructure — Docker, CI/CD, deployment | `edit` `bash` `read` |
 | **@ml-specialist** | `minimax-m2.7` | 🧪 ML Engineer — training, inference, data pipelines | `edit` `bash` `read` |
-| **@security-reviewer** | `mimo-v2.5-pro` | 🔒 Security — audits code, APIs, authentication | `read` only |
+| **@security-reviewer** | `minimax-m3` | 🔒 Security — audits code, APIs, authentication | `read` only |
 | **@git-manager** | `deepseek-v4-flash` | 📦 Git — commits, branches, changelogs | `edit` `bash` `read` |
-| **@test-engineer** | `qwen3.5-plus` | 🧪 Testing — pytest, unit/integration tests | `edit` `bash` `read` |
-| **@prompt-engineer** | `glm-5.1` | ✨ Prompt Design — AI agent instructions, workflows | `edit` `bash` `read` |
+| **@test-engineer** | `minimax-m3` | 🧪 Testing — pytest, unit/integration tests | `edit` `bash` `read` |
+| **@prompt-engineer** | `minimax-m3` | ✨ Prompt Design — AI agent instructions, workflows | `edit` `bash` `read` |
 
-> **Model selection:** Models chosen by benchmark performance — DeepSeek V4 Pro leads GPQA Diamond (90.1%), MiMo V2.5 Pro has 94% math precision, Qwen 3.6 Plus ($0.325/M tokens) for UI work, MiniMax M2.7 leads MLE-Bench Lite (66.6%).
+> **Model selection:** Models chosen by cost-optimized performance — Qwen 3.7 Plus orchestrates coordination, DeepSeek V4 Pro validates with GPQA Diamond (90.1%), MiniMax M3 handles security/testing/prompts, Qwen 3.6 Plus ($0.325/M tokens) for UI work, MiniMax M2.7 leads MLE-Bench Lite (66.6%).
 
 > **How it works:** You give a task to `@orchestrator`. It analyzes, plans, and delegates to the right specialist(s). The validator checks quality before returning results. 15 specialized agents cover the full development lifecycle.
 
@@ -373,7 +373,7 @@ print(f"Plan name: {pm.get_plan_display_name()}")
 
 | Plan | Orchestrator Model | How to Activate |
 |------|-------------------|-----------------|
-| **Go** (default) | `opencode-go/deepseek-v4-pro` | `python main.py --plan go` |
+| **Go** (default) | `opencode-go/qwen3.7-plus` | `python main.py --plan go` |
 | **LM Studio** | `lmstudio/<detected-model>` | `python main.py --plan lmstudio` |
 | **GitHub Copilot** | `copilot/claude-sonnet-4` | `python main.py --plan copilot` |
 | **OpenRouter** | `openrouter/anthropic/claude-sonnet-4` | `python main.py --plan openrouter` |
@@ -718,7 +718,7 @@ python main.py --dir DIR                Set project root directory
 **New features:**
 - **Session bitacora:** `session_manager.py` scans OpenCode logs, saves session records, and injects context for continuity between sessions
 - **Skills system:** `skill_registry.py` downloads and manages skills from [skills.sh](https://skills.sh) ecosystem
-- **@docs-writer agent:** Technical documentation writer (`opencode-go/minimax-m2.5`) for READMEs, manuals, and wikis
+- **@docs-writer agent:** Technical documentation writer (`opencode-go/mimo-v2.5`) for READMEs, manuals, and wikis
 - **Global install automatic:** `setup.ps1` now installs agents globally by default — `opencode --agent orchestrator` works from any folder
 - **Quick install:** `install.ps1` for fast setup on new machines
 
