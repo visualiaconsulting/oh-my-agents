@@ -8,7 +8,8 @@ from cli.wizard import SetupWizard
 def test_custom_project_root(temp_project):
     wizard = SetupWizard(project_root=temp_project)
     assert wizard.project_root == temp_project.resolve()
-    assert wizard.agent_dir == temp_project / ".opencode" / "agents"
+    # Windows CI may expose an 8.3 TEMP path (RUNNER~1) that resolve expands.
+    assert wizard.agent_dir == temp_project.resolve() / ".opencode" / "agents"
 
 
 def test_auto_project_root():
