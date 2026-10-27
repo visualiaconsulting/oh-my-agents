@@ -4,10 +4,9 @@ plan_fallback.py - Simplified fallback system for oh-my-agents
 Go plan is the only standard. No automatic fallback.
 To switch plans, reinstall oh-my-agents globally or per-project.
 """
-import os, json
+import json
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
 
 class FallbackManager:
     """Minimal fallback manager — only supports manual reset to Go."""

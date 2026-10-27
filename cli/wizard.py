@@ -1,242 +1,83 @@
-import os
-import questionary
+"""Configure the five OpenCode roles from the shared catalog."""
 from pathlib import Path
-from cli.ui import console, print_step, print_success, print_error
+
+import questionary
+
+from agent_catalog import ROLES, instructions_for
+from cli.ui import console, print_step, print_success
 from plan_manager import PlanManager
 
 
 class SetupWizard:
     def __init__(self, project_root=None):
-        self.agents = []
-        # Use project_root if provided, otherwise derive from this file's location (cli/wizard.py -> project root)
         self.project_root = Path(project_root).resolve() if project_root else Path(__file__).resolve().parent.parent
         self.agent_dir = self.project_root / ".opencode" / "agents"
         self.pm = PlanManager(project_root=self.project_root)
+        self.agents = []
 
     def check_existing_config(self):
-        if not self.agent_dir.exists():
-            return False
-        return len(list(self.agent_dir.glob("*.md"))) > 0
+        return self.agent_dir.exists() and any(self.agent_dir.glob("*.md"))
 
     def run(self):
-        print_step("Welcome to the Agent Setup Wizard")
-        
-        # Propose default configuration
+        print_step("Configure the five project agents")
         self.propose_defaults()
-        
-        accept = questionary.select(
-            "How would you like to proceed?",
-            choices=[
-                {"name": "Accept default configuration", "value": "default"},
-                {"name": "Configure each agent manually", "value": "manual"}
-            ]
-        ).ask()
-
-        if accept == "default":
-            self.setup_defaults()
-        else:
-            # Reset just in case
-            self.agents = []
-            # 1. Define Orchestrator
-            self.setup_agent(role="orchestrator", is_primary=True)
-            
-            # 2. Define Subagents
-            add_more = True
-            while add_more:
-                self.setup_agent(role="subagent")
-                add_more = questionary.confirm("Do you want to add another subagent?", default=True).ask()
-        
+        choice = questionary.select("How would you like to proceed?", choices=[
+            {"name": "Use the five recommended agents", "value": "default"},
+            {"name": "Choose a model for each of the five roles", "value": "manual"},
+        ]).ask()
+        if choice is None:
+            return
+        self.setup_defaults()
+        if choice == "manual":
+            for agent in self.agents:
+                model = questionary.select(f"Model for @{agent['name']}:",
+                                           choices=self.pm.get_available_models(), default=agent["model"]).ask()
+                if model is None:
+                    return
+                agent["model"] = model
         self.save_all()
-        print_success("Configuration completed successfully.")
-
-        # Ask about auto-session continuity
-        enable = questionary.confirm(
-            "Enable auto-session saving? This keeps context between sessions automatically.",
-            default=True
-        ).ask()
-        if enable:
+        print_success("Five-agent configuration exported.")
+        if questionary.confirm("Enable OpenCode wrapper session saving?", default=True).ask():
             from continuity import enable_auto_session
             if enable_auto_session(self.project_root):
-                console.print("[dim]Auto-session enabled. Session history will be saved automatically.[/dim]")
-            else:
-                console.print("[yellow]Could not enable auto-session.[/yellow]")
+                console.print("[dim]Session saving enabled for the OpenCode logger wrapper.[/dim]")
 
     def propose_defaults(self):
-        """Show the table of what will be configured by default"""
         from rich.table import Table
-        table = Table(title="Suggested Configuration (Go Plan)", border_style="accent")
+        table = Table(title=f"Five agents — {self.pm.get_plan_display_name()}", border_style="accent")
         table.add_column("Agent", style="cyan")
-        table.add_column("Model", style="white")
-        table.add_column("Role", style="dim")
-
-        table.add_row("orchestrator", "opencode-go/deepseek-v4-pro", "Primary")
-        table.add_row("python-engineer", "opencode-go/deepseek-v4-flash", "Python Backend")
-        table.add_row("db-architect", "opencode-go/deepseek-v4-flash", "PostgreSQL")
-        table.add_row("structured-engineer", "opencode-go/deepseek-v4-flash", "JSON/YAML/OpenAPI")
-        table.add_row("docs-writer", "opencode-go/mimo-v2.5", "Documentation")
-        table.add_row("bulk-processor", "opencode-go/deepseek-v4-flash", "Bulk Processing")
-        table.add_row("validator", "opencode-go/deepseek-v4-pro", "QA (read-only)")
-        table.add_row("researcher", "opencode-go/mimo-v2.5", "Tech Research")
-        table.add_row("frontend-engineer", "opencode-go/deepseek-v4-flash", "UI/UX")
-        table.add_row("devops", "opencode-go/deepseek-v4-flash", "Docker/CI/CD")
-        table.add_row("ml-specialist", "opencode-go/kimi-k2.6", "ML Pipelines")
-        table.add_row("security-reviewer", "opencode-go/minimax-m3", "Security (read-only)")
-        table.add_row("git-manager", "opencode-go/deepseek-v4-flash", "Git/Repo")
-        table.add_row("test-engineer", "opencode-go/deepseek-v4-flash", "Testing")
-        table.add_row("prompt-engineer", "opencode-go/mimo-v2.5", "Prompt Design")
-        table.add_row("summarizer", "opencode-go/mimo-v2.5", "Session Summarizer")
-        table.add_row("formatter", "opencode-go/mimo-v2.5", "Code Formatting")
-        table.add_row("changelog-writer", "opencode-go/mimo-v2.5", "Changelog Generator")
-        table.add_row("architect", "opencode-go/minimax-m2.7", "System Architecture")
-        table.add_row("api-designer", "opencode-go/minimax-m2.7", "API Design")
-        table.add_row("code-reviewer", "opencode-go/deepseek-v4-pro", "Code Review (read-only)")
-        table.add_row("fallback", "opencode-go/minimax-m2.5", "Speed/Recovery")
-
+        table.add_column("Model")
+        table.add_column("Responsibility")
+        for role in ROLES:
+            table.add_row(role, self.pm.get_model(role), self.pm.ROLE_DESCRIPTIONS[role])
         console.print(table)
 
     def setup_defaults(self):
-        """Automatically configure the recommended agents"""
-        self.agents = [] # Reset
-        defaults = [
-            {"name": "orchestrator", "role": "primary", "model": "opencode-go/deepseek-v4-pro", "desc": "Central system orchestrator"},
-            {"name": "python-engineer", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "Python backend engineer — FastAPI, automation, APIs"},
-            {"name": "db-architect", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "PostgreSQL specialist — schemas, queries, performance"},
-            {"name": "structured-engineer", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "JSON, YAML, OpenAPI, Docker Compose specialist"},
-            {"name": "docs-writer", "role": "subagent", "model": "opencode-go/mimo-v2.5", "desc": "Technical documentation writer"},
-            {"name": "bulk-processor", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "Bulk data processing and repetitive tasks"},
-            {"name": "validator", "role": "subagent", "model": "opencode-go/deepseek-v4-pro", "desc": "QA and code validator (read-only)"},
-            {"name": "researcher", "role": "subagent", "model": "opencode-go/mimo-v2.5", "desc": "Technical researcher and framework comparison"},
-            {"name": "frontend-engineer", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "UI/UX specialist — React, Next.js, Tailwind"},
-            {"name": "devops", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "Infrastructure — Docker, CI/CD, deployment"},
-            {"name": "ml-specialist", "role": "subagent", "model": "opencode-go/kimi-k2.6", "desc": "ML and data pipeline specialist"},
-            {"name": "security-reviewer", "role": "subagent", "model": "opencode-go/minimax-m3", "desc": "Security auditor (read-only)"},
-            {"name": "git-manager", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "Git repo management and changelogs"},
-            {"name": "test-engineer", "role": "subagent", "model": "opencode-go/deepseek-v4-flash", "desc": "Testing specialist — pytest, unit/integration tests"},
-            {"name": "prompt-engineer", "role": "subagent", "model": "opencode-go/mimo-v2.5", "desc": "Prompt designer for AI agents and workflows"},
-            {"name": "summarizer", "role": "subagent", "model": "opencode-go/mimo-v2.5", "desc": "Session summarizer — logs, reports, context condensing"},
-            {"name": "formatter", "role": "subagent", "model": "opencode-go/mimo-v2.5", "desc": "Code formatter — linting, refactoring, style fixes"},
-            {"name": "changelog-writer", "role": "subagent", "model": "opencode-go/mimo-v2.5", "desc": "Changelog specialist — release notes, version history"},
-            {"name": "architect", "role": "subagent", "model": "opencode-go/minimax-m2.7", "desc": "System architect — project structure, modules, dependencies"},
-            {"name": "api-designer", "role": "subagent", "model": "opencode-go/minimax-m2.7", "desc": "API designer — REST/GraphQL, OpenAPI, contract-first"},
-            {"name": "code-reviewer", "role": "subagent", "model": "opencode-go/deepseek-v4-pro", "desc": "Code reviewer — PR analysis, issue detection (read-only)"},
-        ]
+        self.agents = [{"name": role, "description": self.pm.ROLE_DESCRIPTIONS[role],
+                        "mode": "primary" if role == "orchestrator" else "subagent",
+                        "model": self.pm.get_model(role), "permissions": dict(self.pm.ROLE_PERMISSIONS[role])}
+                       for role in ROLES]
 
-        permissions_map = {
-            "orchestrator":         {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "allow"},
-            "python-engineer":      {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "db-architect":         {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "structured-engineer":  {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "docs-writer":          {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "bulk-processor":       {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "validator":            {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
-            "researcher":           {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "frontend-engineer":    {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "devops":               {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "ml-specialist":        {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "security-reviewer":    {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
-            "git-manager":          {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "test-engineer":        {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "prompt-engineer":      {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "summarizer":           {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "formatter":            {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "changelog-writer":     {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "architect":            {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "api-designer":         {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-            "code-reviewer":        {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "deny"},
-        }
-
-        for d in defaults:
-            agent_config = {
-                "name": d["name"],
-                "description": d["desc"],
-                "mode": d["role"],
-                "model": d["model"],
-                "permissions": permissions_map.get(d["name"], {
-                    "edit": "allow", "bash": "allow", "read": "allow", "task": "deny"
-                })
-            }
-            self.agents.append(agent_config)
-
-    def setup_agent(self, role="subagent", is_primary=False):
-        console.print(f"\n[bold accent]Configuring {'Orchestrator' if is_primary else 'Subagent'}[/bold accent]")
-        
-        default_name = "@orchestrator" if is_primary else "@subagent"
-        name = questionary.text("Agent name:", default=default_name).ask()
-        
-        description = questionary.text("Short role description:").ask()
-        
-        # Model selection with arrows
-        available_models = self.pm.get_available_models()
-        default_model = self.pm.get_model("orchestrator" if is_primary else "fallback")
-        
-        model = questionary.select(
-            f"Select a model for plan '{self.pm.plan}':",
-            choices=available_models,
-            default=default_model
-        ).ask()
-        
-        # Permissions with elegant confirmation
-        allow_edit = questionary.confirm("Allow file editing?", default=True).ask()
-        allow_bash = questionary.confirm("Allow bash command execution?", default=True).ask()
-        
-        agent_config = {
-            "name": name.replace("@", ""),
-            "description": description,
-            "mode": "primary" if is_primary else "subagent",
-            "model": model,
-            "permissions": {
-                "edit": "allow" if allow_edit else "deny",
-                "bash": "allow" if allow_bash else "deny",
-                "read": "allow",
-                "task": "allow" if is_primary else "deny"
-            }
-        }
-        self.agents.append(agent_config)
+    def setup_agent(self, role="coder", is_primary=False):
+        """Compatibility entry point restricted to an existing catalog role."""
+        role = "orchestrator" if is_primary else role
+        if role not in ROLES:
+            raise ValueError(f"Choose a supported role: {', '.join(ROLES)}")
+        model = questionary.select(f"Model for @{role}:", choices=self.pm.get_available_models(),
+                                   default=self.pm.get_model(role)).ask()
+        if model is None:
+            return
+        self.agents = [agent for agent in self.agents if agent["name"] != role]
+        self.agents.append({"name": role, "description": self.pm.ROLE_DESCRIPTIONS[role],
+                            "mode": "primary" if role == "orchestrator" else "subagent",
+                            "model": model, "permissions": dict(self.pm.ROLE_PERMISSIONS[role])})
 
     def save_all(self):
-        self.agent_dir.mkdir(parents=True, exist_ok=True)
-        from utils import validate_agent_directory
-
-        # Check for existing conflicts before writing
-        existing_issues = validate_agent_directory(self.agent_dir)
-        existing_names = set()
-        for f in self.agent_dir.glob("*.md"):
-            if f.stem not in [a["name"] for a in self.agents]:
-                c = f.read_text(encoding="utf-8").strip()
-                if c.startswith("---"):
-                    parts = c.split("---")
-                    if len(parts) >= 3:
-                        import yaml
-                        try:
-                            meta = yaml.safe_load(parts[1])
-                            if isinstance(meta, dict) and meta.get("name"):
-                                existing_names.add(meta["name"])
-                        except yaml.YAMLError:
-                            pass
-
-        for agent in self.agents:
-            agent_name = agent["name"]
-            if agent_name in existing_names:
-                console.print(f"  [yellow]⚠[/yellow] Agent \"{agent_name}\" already exists — overwriting")
-
-            file_path = self.agent_dir / f"{agent_name}.md"
-            content = self._format_md(agent)
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(content)
+        if {agent["name"] for agent in self.agents} != set(ROLES) or len(self.agents) != len(ROLES):
+            raise ValueError("The setup must contain exactly the five supported roles")
+        self.pm.write_agent_files(self.project_root, {a["name"]: a["model"] for a in self.agents})
 
     def _format_md(self, agent):
-        return f"""---
-name: {agent['name']}
-description: {agent['description']}
-mode: {agent['mode']}
-model: {agent['model']}
-temperature: 0.2
-permission:
-  edit: {agent['permissions']['edit']}
-  bash: {agent['permissions']['bash']}
-  read: {agent['permissions']['read']}
-  task: {agent['permissions']['task']}
----
-
-{agent['description']}. Your goal is to fulfill user requests efficiently.
-"""
+        from adapters.opencode import format_agent
+        body = instructions_for(agent["name"]) if agent["name"] in ROLES else agent["description"] + ". Your goal is to fulfill user requests efficiently.\n"
+        return format_agent(agent["name"], agent["model"], agent["description"], agent["permissions"], body=body)

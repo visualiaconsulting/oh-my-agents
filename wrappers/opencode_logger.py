@@ -16,8 +16,6 @@ import threading
 from pathlib import Path
 from datetime import datetime
 from plan_fallback import FallbackManager
-import json
-import hashlib
 
 
 def find_real_opencode():
@@ -120,46 +118,46 @@ def check_and_trigger_fallback(project_root, log_content, args):
     """Check log content for credit errors and trigger fallback if needed."""
     try:
         fm = FallbackManager(project_root)
-        
+
         if not fm.detect_credit_error(log_content):
             return False
-        
+
         current_plan = os.getenv("OPENCODE_PLAN", "go")
-        
+
         if fm.is_fallback_active():
             return False
-        
+
         next_plan = fm.get_next_fallback_plan(current_plan)
         if not next_plan:
             return False
-        
+
         reason = ""
         for line in log_content.splitlines():
             if fm.detect_credit_error(line):
                 reason = line.strip()[:200]
                 break
-        
+
         event = fm.trigger_fallback(current_plan, reason)
         if event:
             print(f"\n[oh-my-agents] WARNING: Credits exhausted on plan '{current_plan}'", file=sys.stderr)
             print(f"[oh-my-agents] Reason: {reason}", file=sys.stderr)
-            print(f"[oh-my-agents] Run: python main.py --plan go to restore Go plan", file=sys.stderr)
+            print("[oh-my-agents] Run: python main.py --plan go to restore Go plan", file=sys.stderr)
             return True
-        
+
         return False
     except Exception:
         return False
 
 def auto_save_session(project_root, log_filepath, returncode, duration_seconds, args):
     """Auto-save a session record to the project database after OpenCode exits.
-    
+
     This function:
     1. Reads the log file content
     2. Parses it to extract errors, warnings, files, commands
     3. Generates a session summary
     4. Saves to the project's SQLite database (.opencode/project.db)
     5. Updates the project's context.md with session history
-    
+
     This only runs if the .opencode/.auto_session_enabled flag file exists
     in the project directory.
     """
@@ -168,38 +166,37 @@ def auto_save_session(project_root, log_filepath, returncode, duration_seconds, 
         flag_file = project_root / ".opencode" / ".auto_session_enabled"
         if not flag_file.exists():
             return
-        
+
         # Read the log file
         try:
             with open(log_filepath, "r", encoding="utf-8") as f:
                 log_content = f.read()
         except (IOError, OSError):
             return
-        
+
         if not log_content.strip():
             return
-        
+
         # Import project modules (add project root to path if needed)
         import sys
         parent_dir = str(Path(__file__).resolve().parent.parent)
         if parent_dir not in sys.path:
             sys.path.insert(0, parent_dir)
-        
+
         from utils import (
             generate_session_id,
             format_timestamp,
-            get_current_git_branch,
             parse_openCode_log_content,
             truncate_text,
         )
         from project_db import ProjectDB
-        
+
         # Parse log content
         parsed = parse_openCode_log_content(log_content)
-        
+
         # Generate summary from the last part of the log (conclusions)
         summary_hint = parsed.get("summary_hint", "")
-        summary = f"Auto-saved session. "
+        summary = "Auto-saved session. "
         if parsed["errors"]:
             summary += f"{len(parsed['errors'])} error(s) found. "
         if parsed["files_changed"]:
@@ -208,7 +205,7 @@ def auto_save_session(project_root, log_filepath, returncode, duration_seconds, 
             summary += f"Context: {truncate_text(summary_hint, 200)}"
         else:
             summary += truncate_text(log_content.splitlines()[-1] if log_content.splitlines() else "", 200)
-        
+
         # Build session data
         session_data = {
             "session_id": generate_session_id(),
@@ -225,12 +222,12 @@ def auto_save_session(project_root, log_filepath, returncode, duration_seconds, 
             "errors": [{"error_message": e, "severity": "error"} for e in parsed.get("errors", [])][:20],
             "commands": [{"command": c, "exit_code": 0, "duration_ms": 0} for c in parsed.get("commands_run", [])][:20],
         }
-        
+
         # Save to project DB
         db = ProjectDB(project_root)
         try:
             session_id = db.save_session(session_data)
-            
+
             # Update context.md
             context = db.inject_context(max_sessions=3)
             if context:
@@ -244,11 +241,11 @@ def auto_save_session(project_root, log_filepath, returncode, duration_seconds, 
                     updated = inject_markdown_section(content, "## Recent Session History", context)
                     if updated != content:
                         context_file.write_text(updated, encoding="utf-8")
-            
+
             # Print brief notification (to stderr so it doesn't mix with pipe output)
             import sys as _sys
             print(f"\n[oh-my-agents] Session saved: {session_id} ({len(parsed.get('files_changed', []))} files, {len(parsed.get('errors', []))} errors)", file=_sys.stderr)
-            
+
             # Also save JSON backup for backward compatibility
             try:
                 from utils import get_sessions_dir, safe_json_save
@@ -268,10 +265,10 @@ def auto_save_session(project_root, log_filepath, returncode, duration_seconds, 
                 safe_json_save(sessions_dir / f"{session_data['session_id']}.json", json_session)
             except Exception:
                 pass  # JSON backup is best-effort
-                
+
         finally:
             db.close()
-            
+
     except Exception:
         # Auto-save should never crash the wrapper
         pass

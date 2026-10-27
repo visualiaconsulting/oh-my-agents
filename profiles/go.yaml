@@ -1,0 +1,9 @@
+name: go
+runtime: opencode
+display_name: OpenCode Go Plan
+models:
+  orchestrator: {model: opencode-go/deepseek-v4-pro}
+  writer: {model: opencode-go/mimo-v2.5}
+  coder: {model: opencode-go/deepseek-v4-flash}
+  database: {model: opencode-go/deepseek-v4-flash}
+  dashboard-designer: {model: opencode-go/deepseek-v4-flash}

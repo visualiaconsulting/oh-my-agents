@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "runtime": "codex",
+  "profile": "chatgpt",
+  "files": {
+    ".codex/config.toml": "4b80c5e2f26372db4abb610623cd793e6a1cfde8328dbf9069d5404c610ba97e",
+    ".codex/agents/writer.toml": "1e0afc1512e06b09c592a685dbee9c56b7cd16ae045e4d8653e56b3cb3cb660e",
+    ".codex/agents/coder.toml": "ef54115021fef861ba25f854e75e780fc46b7bcf72e07b719cab7e83be0f45db",
+    ".codex/agents/database.toml": "e0e84cfe67f343ea5174b143416239543f8a42ea5d7d2b196e9ac4363a79711c",
+    ".codex/agents/dashboard-designer.toml": "a0e957e14c871579bb3dd43bd496933c0601d8c8279a61ee91f474c5db501026",
+    "AGENTS.md": "5cf10abdbe4e9c87c2b15b8d72fb57cd0ce2b0e250c7ceff233c07c4232a73ed"
+  },
+  "codex_compat": "modern"
+}

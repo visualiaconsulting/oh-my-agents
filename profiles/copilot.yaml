@@ -1,0 +1,9 @@
+name: copilot
+runtime: opencode
+display_name: GitHub Copilot
+models:
+  orchestrator: {model: copilot/claude-sonnet-4}
+  writer: {model: copilot/gpt-4o}
+  coder: {model: copilot/gpt-4o}
+  database: {model: copilot/gpt-4o}
+  dashboard-designer: {model: copilot/gpt-4o}

@@ -1,4 +1,3 @@
-import sys
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -19,22 +18,12 @@ custom_theme = Theme({
     "label": "cyan",
 })
 
-console = Console(theme=custom_theme, force_terminal=True, legacy_windows=False)
+console = Console(theme=custom_theme, legacy_windows=False)
 
 
 def print_header():
-    ascii_art = """
-    ██████╗ ██████╗ ███████╗███╗   ██╗ ██████╗  ██████╗ ██████╗ ███████╗
-    ██╔══██╗██╔══██╗██╔════╝████╗  ██║██╔════╝ ██╔═══██╗██╔══██╗██╔════╝
-    ██║  ██║██████╔╝█████╗  ██╔██╗ ██║██║      ██║   ██║██║  ██║█████╗
-    ██║  ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██║      ██║   ██║██║  ██║██╔══╝
-    ██████╔╝██║     ███████╗██║ ╚████║╚██████╗ ╚██████╔╝██████╔╝███████╗
-    ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝ ╚═════╝  ╚═════╝ ╚═════╝ ╚═════╝
-    """
-    console.print(Align.center(f"[accent]{ascii_art}[/accent]"))
-
     title = Text("oh-my-agents", style="bold cyan")
-    subtitle = Text("Multi-Agent Orchestration Framework", style="dim")
+    subtitle = Text("Five agents. One coordinated project.\nCodex with ChatGPT | OpenCode Go", style="dim")
     credit = Text("A product of VisualIA Consulting - Licensed under MIT", style="dim italic")
 
     panel_content = Align.center(
@@ -57,9 +46,9 @@ def print_plan_panel(current_plan: str, plans: dict):
         desc = info["description"]
         status = info.get("status_label", "")
         if key == current_plan:
-            lines.append(f"  [plan_active]● {name}  (active)[/plan_active]")
+            lines.append(f"  [plan_active]* {name}  (selected)[/plan_active]")
         else:
-            lines.append(f"  [plan_inactive]○ {name}[/plan_inactive]  [yellow]{status}[/yellow]")
+            lines.append(f"  [plan_inactive]- {name}[/plan_inactive]  [yellow]{status}[/yellow]")
         lines.append(f"     [dim]{desc}[/dim]")
     text = Text.from_markup("\n".join(lines))
     panel = Panel(text, title="[bold]Provider[/bold]", border_style="dim", box=ROUNDED, padding=(0, 2))
@@ -74,7 +63,7 @@ def print_action_menu(actions: dict):
     lines = []
     for section, items in actions.items():
         if section:
-            lines.append(f"  [dim]── {section} ──[/dim]")
+            lines.append(f"  [dim]{section}[/dim]")
         for key, label in items:
             lines.append(f"  [accent][{key}][/accent] {label}")
         lines.append("")
@@ -94,7 +83,7 @@ def print_diagnostic_panel(checks: list):
     table.add_column("Detail")
     for item in checks:
         status_style = "bold green" if item["ok"] else "bold red"
-        status_text = "✓" if item["ok"] else "✗"
+        status_text = "OK" if item["ok"] else "WARN"
         table.add_row(
             item["name"],
             f"[{status_style}]{status_text}[/{status_style}]",
@@ -105,7 +94,7 @@ def print_diagnostic_panel(checks: list):
 
 
 def print_agent_status(agents_data):
-    table = Table(title="Active Agents", border_style="dim")
+    table = Table(title="Configured agents", border_style="dim")
     table.add_column("Agent", style="accent")
     table.add_column("Role", style="info")
     table.add_column("Model", style="white")
@@ -116,7 +105,7 @@ def print_agent_status(agents_data):
             agent['name'],
             agent['role'],
             agent['model'],
-            "[bold green]Active[/bold green]"
+            "[cyan]Configured[/cyan]"
         )
 
     console.print(table)
@@ -166,10 +155,16 @@ def print_session_detail(session):
     console.print(f"  [bold]Session:[/bold] {sid}")
     console.print(f"  [bold]Time:[/bold]    {ts}")
     console.print(f"  [bold]Agent:[/bold]   @{agent}")
+    console.print(f"  Runtime: {session.get('runtime') or 'unknown'} / {session.get('profile') or 'unknown'}", markup=False)
+    console.print(f"  Model: {session.get('model') or 'unknown'} | Status: {session.get('status', 'partial')}", markup=False)
+    for evidence in session.get("evidence", [])[:5]:
+        console.print(f"  Evidence: {evidence}", markup=False)
+    for check in session.get("checks", [])[:8]:
+        console.print(f"  Check: {check.get('name') or check.get('command')} - {check.get('status', 'not_run')}", markup=False)
     console.print("")
 
     if summary:
-        console.print(f"  [bold]Summary:[/bold]")
+        console.print("  [bold]Summary:[/bold]")
         console.print(f"  {summary}")
         console.print("")
 
@@ -177,16 +172,17 @@ def print_session_detail(session):
     if errors:
         console.print(f"  [bold red]Errors ({len(errors)}):[/bold red]")
         for err in errors[:5]:
-            console.print(f"    [red]·[/red] {truncate_text(err, 100)}")
+            message = err.get("error_message", str(err)) if isinstance(err, dict) else str(err)
+            console.print(f"    [red]·[/red] {truncate_text(message, 100)}")
         if len(errors) > 5:
             console.print(f"    [dim]... and {len(errors) - 5} more[/dim]")
         console.print("")
 
     pending = session.get("pending_tasks", [])
     if pending:
-        console.print(f"  [bold yellow]Pending Tasks:[/bold yellow]")
+        console.print("  [bold yellow]Pending Tasks:[/bold yellow]")
         for task in pending:
-            console.print(f"    [yellow]·[/yellow] {truncate_text(task, 100)}")
+            console.print(f"    [yellow]·[/yellow] {truncate_text(str(task), 100)}")
         console.print("")
 
     files = session.get("files_changed", [])

@@ -253,7 +253,7 @@ class SessionManager:
                     lines.append(f"- {truncate_text(err, 120)}")
                 lines.append("")
             if pending:
-                lines.append(f"**Pending tasks:**")
+                lines.append("**Pending tasks:**")
                 for task in pending:
                     lines.append(f"- [ ] {truncate_text(task, 120)}")
                 lines.append("")

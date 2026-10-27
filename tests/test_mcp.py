@@ -1,8 +1,3 @@
-import pytest
-from pathlib import Path
-from unittest.mock import patch, MagicMock, mock_open
-
-
 class TestMCPConfig:
     def test_load_default_config(self, tmp_path):
         from mcp_config import MCPConfig

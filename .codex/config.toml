@@ -1,0 +1,22 @@
+model = "gpt-6-astra"
+model_reasoning_effort = "medium"
+
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 3
+
+[agents.writer]
+description = "Write documentation, evidence-based reports, manuals, and session summaries."
+config_file = "agents/writer.toml"
+
+[agents.coder]
+description = "Implement code, APIs, debugging, tests, automation, and CI."
+config_file = "agents/coder.toml"
+
+[agents.database]
+description = "Design schemas, SQL queries, migrations, integrity checks, and database performance improvements."
+config_file = "agents/database.toml"
+
+[agents.dashboard-designer]
+description = "Improve dashboard UX, visual hierarchy, charts, responsive components, and accessibility."
+config_file = "agents/dashboard-designer.toml"

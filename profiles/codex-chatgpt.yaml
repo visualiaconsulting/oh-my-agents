@@ -1,0 +1,10 @@
+name: chatgpt
+runtime: codex
+display_name: Codex with ChatGPT
+max_concurrent_specialists: 3
+models:
+  orchestrator: {model: gpt-6-astra, reasoning_effort: medium}
+  writer: {model: gpt-6-luna, reasoning_effort: medium}
+  coder: {model: gpt-6.1-sol, reasoning_effort: medium}
+  database: {model: gpt-6.1-sol, reasoning_effort: high}
+  dashboard-designer: {model: gpt-6.1-terra, reasoning_effort: medium}

@@ -1,1 +1,10 @@
-{"plan": "go"}
+{
+  "plan": "go",
+  "models": {
+    "orchestrator": "opencode-go/deepseek-v4-pro",
+    "writer": "opencode-go/mimo-v2.5",
+    "coder": "opencode-go/deepseek-v4-flash",
+    "database": "opencode-go/deepseek-v4-flash",
+    "dashboard-designer": "opencode-go/deepseek-v4-flash"
+  }
+}

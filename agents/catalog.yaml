@@ -1,0 +1,17 @@
+schema_version: 1
+roles:
+  orchestrator:
+    description: Coordinate the four specialists, integrate results, and review correctness and security.
+    permissions: {edit: deny, bash: deny, read: allow, task: allow}
+  writer:
+    description: Write documentation, evidence-based reports, manuals, and session summaries.
+    permissions: {edit: allow, bash: allow, read: allow, task: deny}
+  coder:
+    description: Implement code, APIs, debugging, tests, automation, and CI.
+    permissions: {edit: allow, bash: allow, read: allow, task: deny}
+  database:
+    description: Design schemas, SQL queries, migrations, integrity checks, and database performance improvements.
+    permissions: {edit: allow, bash: allow, read: allow, task: deny}
+  dashboard-designer:
+    description: Improve dashboard UX, visual hierarchy, charts, responsive components, and accessibility.
+    permissions: {edit: allow, bash: allow, read: allow, task: deny}

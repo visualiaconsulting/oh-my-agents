@@ -13,6 +13,8 @@ import urllib.error
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 
+from agent_catalog import load_catalog, instructions_for
+
 LMSTUDIO_BASE = "http://localhost:1234"
 LMSTUDIO_API_V0 = f"{LMSTUDIO_BASE}/api/v0"
 LMSTUDIO_API_V1 = f"{LMSTUDIO_BASE}/api/v1"
@@ -24,23 +26,11 @@ GLOBAL_OPENCODE_CONFIG = Path.home() / ".config" / "opencode" / "opencode.jsonc"
 GLOBAL_AGENTS_DIR = Path.home() / ".opencode" / "agents"
 GLOBAL_BACKUP_DIR = Path.home() / ".opencode" / "agents-go-backup"
 
-ROLE_NAMES = [
-    "orchestrator", "python-engineer"
-]
-
-ROLE_DESCRIPTIONS = {
-    "orchestrator":     "Main coordinator — delegates tasks to sub-agents",
-    "python-engineer":  "Backend engineer — Python, FastAPI, automation, APIs",
-}
-
-ROLE_PERMISSIONS = {
-    "orchestrator":    {"edit": "deny",  "bash": "deny",  "read": "allow", "task": "allow"},
-    "python-engineer": {"edit": "allow", "bash": "allow", "read": "allow", "task": "deny"},
-}
-
-ROLE_TEMPERATURES = {
-    "orchestrator": 0.2, "python-engineer": 0.2,
-}
+_ROLE_CATALOG = load_catalog()["roles"]
+ROLE_NAMES = ["orchestrator", "coder", "database", "dashboard-designer", "writer"]
+ROLE_DESCRIPTIONS = {role: _ROLE_CATALOG[role]["description"] for role in ROLE_NAMES}
+ROLE_PERMISSIONS = {role: _ROLE_CATALOG[role]["permissions"] for role in ROLE_NAMES}
+ROLE_TEMPERATURES = {role: 0.2 for role in ROLE_NAMES}
 
 
 def _parse_params(params_str: str) -> float:
@@ -178,13 +168,13 @@ def list_models() -> List[Dict]:
 def auto_assign_roles(models: List[Dict]) -> List[Tuple[str, Dict]]:
     """
     Assign roles to models based on size ranking.
-    Largest model -> orchestrator, 2nd -> python-engineer, etc.
+    Largest model -> orchestrator, 2nd -> coder, etc.
     Returns list of (role, model_info) tuples.
     """
     if not models:
         return []
 
-    # Boost code models for python-engineer role
+    # Boost code models for coder role
     scored = []
     for m in models:
         score = m["params"]
@@ -205,27 +195,11 @@ def auto_assign_roles(models: List[Dict]) -> List[Tuple[str, Dict]]:
 
 
 def format_agent_md(role: str, model_info: Dict) -> str:
-    """Generate agent .md file content for a given role and model."""
-    perms = ROLE_PERMISSIONS[role]
-    temp = ROLE_TEMPERATURES[role]
-    desc = ROLE_DESCRIPTIONS[role]
-    model_id = model_info["id"]
-
-    return f"""---
-name: {role}
-description: {desc}
-mode: {"primary" if role == "orchestrator" else "subagent"}
-model: lmstudio/{model_id}
-temperature: {temp}
-permission:
-  edit: {perms["edit"]}
-  bash: {perms["bash"]}
-  read: {perms["read"]}
-  task: {perms["task"]}
----
-
-{desc}. Running locally via LM Studio ({model_info['display_name']}, {model_info['params_string']}).
-"""
+    """Generate a complete shared-role prompt for a local model."""
+    from adapters.opencode import format_agent
+    return format_agent(role, f"lmstudio/{model_info['id']}",
+                        ROLE_DESCRIPTIONS[role], ROLE_PERMISSIONS[role],
+                        body=instructions_for(role))
 
 
 def _get_global_config_path() -> Path:
@@ -255,7 +229,6 @@ def ensure_global_lmstudio_config(installed: List[Dict]):
     for entry in installed:
         model_id = entry["model"]
         display = entry["display"]
-        params = entry.get("params", "")
         provider_models[model_id] = {
             "name": display,
             "limit": {
@@ -391,26 +364,16 @@ def _rmtree(path: Path):
 
 
 def _install_agents_to_dir(target_dir: Path, assignments: List[Tuple[str, Dict]], backup_dir: Path) -> List[Dict]:
-    """Backup existing agents in target_dir, then write LM Studio agents."""
+    """Install shared roles without deleting custom agents."""
+    from adapters import export_runtime
+    if {role for role, _ in assignments} != set(ROLE_NAMES):
+        raise ValueError("LM Studio needs a model assignment for all five roles")
     if target_dir.exists() and not backup_dir.exists():
         shutil.copytree(target_dir, backup_dir)
-
-    target_dir.mkdir(parents=True, exist_ok=True)
-    for f in target_dir.glob("*.md"):
-        f.unlink()
-
-    installed = []
-    for role, model_info in assignments:
-        content = format_agent_md(role, model_info)
-        file_path = target_dir / f"{role}.md"
-        file_path.write_text(content, encoding="utf-8")
-        installed.append({
-            "role": role,
-            "model": model_info["id"],
-            "display": model_info["display_name"],
-            "params": model_info["params_string"],
-        })
-    return installed
+    export_runtime(target_dir.parent.parent, "opencode", "lmstudio",
+                   model_overrides={role: "lmstudio/" + model["id"] for role, model in assignments})
+    return [{"role": role, "model": model["id"], "display": model["display_name"],
+             "params": model["params_string"]} for role, model in assignments]
 
 
 def _restore_agents_from_backup(target_dir: Path, backup_dir: Path) -> int:
@@ -433,11 +396,11 @@ def safe_assign_roles(models: List[Dict]) -> List[Tuple[str, Dict]]:
 
     Strategy:
     1. Filter out embedding models (params <= 0) and broken models
-    2. Rank usable LLMs by size with code model boost for python-engineer
+    2. Rank usable LLMs by size with code model boost for coder
     3. Assign to priority roles in order, duplicating models if needed
 
-    Priority order: orchestrator > python-engineer
-    When only 1 usable LLM, it is assigned to orchestrator; python-engineer duplicates it.
+    Priority order: orchestrator > coder
+    When only 1 usable LLM, it is assigned to orchestrator; coder duplicates it.
     """
     broken_keywords = ["nemotron"]
 
@@ -467,7 +430,7 @@ def safe_assign_roles(models: List[Dict]) -> List[Tuple[str, Dict]]:
     ranked = [m for _, m in scorer]
 
     # Assign in priority order (least critical role at the end)
-    least_critical = ["python-engineer"]
+    least_critical = ["writer"]
     priority_roles = [r for r in ROLE_NAMES if r not in least_critical] + least_critical
 
     assignments = []
@@ -477,14 +440,6 @@ def safe_assign_roles(models: List[Dict]) -> List[Tuple[str, Dict]]:
         else:
             model = ranked[-1]  # duplicate the smallest usable model
         assignments.append((role, model))
-
-    # Assign broken models (like Nemotron) to least critical roles
-    if broken:
-        for i in range(len(assignments) - 1, -1, -1):
-            role, _ = assignments[i]
-            if role in least_critical:
-                assignments[i] = (role, broken[0])
-                break
 
     return assignments
 
@@ -521,8 +476,11 @@ def install_lmstudio_agents(project_root: Path, models: List[Dict], manual: bool
     # Save plan.json in project
     plan_path = project_root / ".opencode" / "plan.json"
     plan_path.parent.mkdir(parents=True, exist_ok=True)
+    plan_data = json.loads(plan_path.read_text(encoding="utf-8")) if plan_path.exists() else {}
+    plan_data["plan"] = "lmstudio"
+    plan_data["models"] = {role: "lmstudio/" + model["id"] for role, model in assignments}
     with open(plan_path, "w", encoding="utf-8") as f:
-        json.dump({"plan": "lmstudio"}, f)
+        json.dump(plan_data, f, indent=2)
 
     # Update global OpenCode config with LM Studio provider
     ensure_global_lmstudio_config(installed)
@@ -583,17 +541,16 @@ def reset_to_go(project_root: Path) -> Dict:
     Restore Go agents from backup in both project and global dirs.
     Removes LM Studio plan.json. Returns status dict.
     """
-    proj_agents = project_root / ".opencode" / "agents"
     proj_backup = project_root / ".opencode" / "agents-go-backup"
-    plan_path = project_root / ".opencode" / "plan.json"
 
-    proj_restored = _restore_agents_from_backup(proj_agents, proj_backup)
-    global_restored = _restore_agents_from_backup(GLOBAL_AGENTS_DIR, GLOBAL_BACKUP_DIR)
+    from plan_manager import PlanManager
+    pm = PlanManager("go", project_root)
+    proj_restored = pm.write_agent_files(project_root)
+    global_restored = pm.write_agent_files(GLOBAL_AGENTS_DIR.parent.parent)
 
     restored = proj_restored or global_restored
 
-    if plan_path.exists():
-        plan_path.unlink()
+    # The exporter has already saved the Go plan.
 
     # Clean up LM Studio provider from global OpenCode config
     config_path = _get_global_config_path()

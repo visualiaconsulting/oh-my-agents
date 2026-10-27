@@ -1,0 +1,23 @@
+{
+  ".opencode/agents/api-designer.md": "4c56c34fb035b051244423077ac5d5157ff95ba18cad1f4d45d01e3a77acaa21",
+  ".opencode/agents/architect.md": "1629c652c281763efc56d661d230afaedd25dfa57f861f1cbda95f1b895ebc12",
+  ".opencode/agents/bulk-processor.md": "754a4a52d2f4e7feb3ca98c1b091fd0ee7acf949656ed99dbd425c9141b32738",
+  ".opencode/agents/changelog-writer.md": "2a1210f9b4b5627f36e11f565e0687806f5ffc87e0a3561853b0a78b978bf400",
+  ".opencode/agents/code-reviewer.md": "a259655e9e679ec0f28ab463e006987acfa8b12dc18925dce6f37c9fb8713f61",
+  ".opencode/agents/db-architect.md": "92c70e98bad69d7a6a2bce54767440fb0c3face88c3c3e16cc7331835466a19c",
+  ".opencode/agents/devops.md": "10e5279dfbbd5f7eeb8902004411c95681fe4e580254b225b9c3df2b0d878174",
+  ".opencode/agents/docs-writer.md": "a87cab1f9fd2bcecbeda1a7c87e6d1f744536da77511c46ed2655ce3e1dc456c",
+  ".opencode/agents/formatter.md": "11315aef4f3bbff26b4d942b18b52a55db9c7442cd257f18ec2442e3265466ba",
+  ".opencode/agents/frontend-engineer.md": "60b7bc66824b39d86c5c5c1751c613730a5c5a1aafb9d5277f085b5654b069a8",
+  ".opencode/agents/git-manager.md": "91ec3fba8fc572650ffe2d60a6e6e4cda490678465063f4415a45b8ddba6f1c7",
+  ".opencode/agents/ml-specialist.md": "5490d28de9ccf648021ce565f9a94bb062e63ba425210f8f42ee6c8446f31b87",
+  ".opencode/agents/orchestrator.md": "59bd4d300dc83901527fc9b77b61024daab5e2805b4f078f35f3498e9cc33967",
+  ".opencode/agents/prompt-engineer.md": "d70e825132d788e16132681469307bdcd6583cddfc04d090370f02fc240ef78d",
+  ".opencode/agents/python-engineer.md": "c32dd989a4279d562e79533b6dc5ecd72eef384dfb6be3a2cd1ebebe58758f3f",
+  ".opencode/agents/researcher.md": "0537c5fb461c317da13a11ab37ea05de74c7846f7fc59b70f316db1c4c55ef91",
+  ".opencode/agents/security-reviewer.md": "0002fa038f83a1286988526de135226f635d1eb221054d56fc98f2b77781a5b0",
+  ".opencode/agents/structured-engineer.md": "2c20e14cfbd862ea1df2c2396fcfea82d8ac6f3c111e261f3cf601073c8df0d2",
+  ".opencode/agents/summarizer.md": "08ebbbee2d447af4c7ab779fb31e114df9caa81d117acb06b0367be09dc50adb",
+  ".opencode/agents/test-engineer.md": "08ef3f7207e9115c437d466b12c28e8d9447f36dc8a67dc28c65ce3a0ca95ca5",
+  ".opencode/agents/validator.md": "674698c3402457aa7cb0e2c6aff5b7365d2560725327c656cd9930e0a9bd4cad"
+}
