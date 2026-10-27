@@ -93,7 +93,7 @@ class TestGetModel:
 
     def test_researcher_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("researcher") == "opencode-go/mimo-v2.5"
+        assert pm.get_model("researcher") == "opencode-go/deepseek-v4-pro"
 
     def test_frontend_engineer_model(self, clean_env):
         pm = PlanManager()
@@ -105,11 +105,11 @@ class TestGetModel:
 
     def test_ml_specialist_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("ml-specialist") == "opencode-go/kimi-k2.6"
+        assert pm.get_model("ml-specialist") == "opencode-go/deepseek-v4-flash"
 
     def test_security_reviewer_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("security-reviewer") == "opencode-go/minimax-m3"
+        assert pm.get_model("security-reviewer") == "opencode-go/deepseek-v4-pro"
 
     def test_git_manager_model(self, clean_env):
         pm = PlanManager()
@@ -121,7 +121,7 @@ class TestGetModel:
 
     def test_prompt_engineer_model(self, clean_env):
         pm = PlanManager()
-        assert pm.get_model("prompt-engineer") == "opencode-go/mimo-v2.5"
+        assert pm.get_model("prompt-engineer") == "opencode-go/deepseek-v4-pro"
 
     def test_fallback_model(self, clean_env):
         pm = PlanManager()

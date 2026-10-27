@@ -1,0 +1,9 @@
+name: lmstudio
+runtime: opencode
+display_name: LM Studio
+models:
+  orchestrator: {model: lmstudio/default-orchestrator}
+  writer: {model: lmstudio/default-writer}
+  coder: {model: lmstudio/default-coder}
+  database: {model: lmstudio/default-database}
+  dashboard-designer: {model: lmstudio/default-dashboard-designer}

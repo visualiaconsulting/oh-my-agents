@@ -1,0 +1,9 @@
+name: openrouter
+runtime: opencode
+display_name: OpenRouter
+models:
+  orchestrator: {model: openrouter/google/gemini-2.5-flash}
+  writer: {model: openrouter/google/gemini-2.5-flash}
+  coder: {model: openrouter/deepseek/deepseek-v3}
+  database: {model: openrouter/deepseek/deepseek-v3}
+  dashboard-designer: {model: openrouter/google/gemini-2.5-flash}

@@ -6,7 +6,7 @@ from the built-in catalog. Can auto-install with user confirmation.
 """
 import json
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+from typing import List, Optional, Tuple
 from fnmatch import fnmatch
 
 from utils import get_system_root

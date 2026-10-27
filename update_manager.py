@@ -58,7 +58,9 @@ def run_update(target_version: Optional[str] = None) -> Tuple[bool, str]:
     """Run the update workflow.
 
     Downloads the latest (or specified) version from GitHub and
-    overwrites all framework files in-place, preserving user data.
+    updates framework sources in-place, preserving native agent configuration,
+    installed skills, project instructions, virtualenvs and runtime data.
+    Run an explicit export after the update to refresh generated configuration.
 
     Args:
         target_version: Specific version tag to install (e.g. "1.2.1").
@@ -117,11 +119,14 @@ def run_update(target_version: Optional[str] = None) -> Tuple[bool, str]:
             # Preserved items (user data and VCS)
             preserved = {
                 ".git",
-                ".opencode/sessions",
-                ".opencode/skills",
-                ".opencode/logs",
+                ".codex",
+                ".agents",
+                ".oh-my-agents",
+                ".venv",
+                "venv",
                 "__pycache__",
                 ".pytest_cache",
+                ".ruff_cache",
                 ".python-version",
             }
 
@@ -132,7 +137,11 @@ def run_update(target_version: Optional[str] = None) -> Tuple[bool, str]:
                 if item.name in preserved:
                     continue
 
-                # Merge .opencode: only overwrite framework files
+                # Project instructions may contain user rules outside our block.
+                if item.name.lower() == "agents.md" and dest.exists():
+                    continue
+
+                # Keep all existing project context, agents and runtime files.
                 if item.name == ".opencode":
                     _merge_opencode_dir(item, dest)
                     continue
@@ -149,7 +158,9 @@ def run_update(target_version: Optional[str] = None) -> Tuple[bool, str]:
 
             return True, (
                 f"Successfully updated to v{tag}. "
-                f"Run 'python main.py --version' to verify."
+                "Run 'python main.py --version' to verify. "
+                "Native configuration and project instructions were preserved. "
+                "Preview an explicit --export --dry-run before refreshing agents."
             )
 
     except Exception as e:
@@ -157,17 +168,22 @@ def run_update(target_version: Optional[str] = None) -> Tuple[bool, str]:
 
 
 def _merge_opencode_dir(source: Path, dest: Path) -> None:
-    """Merge .opencode directory: overwrite context.md and agents, preserve the rest."""
-    # Update context.md
+    """Seed missing OpenCode files without replacing project-owned instructions.
+
+    An existing agent collection is left intact as a whole, even when a new
+    release adds roles. Mixing generations could reactivate obsolete roles.
+    The normal exporter provides the review/backup/ownership workflow instead.
+    """
     context_src = source / "context.md"
-    if context_src.exists():
+    if context_src.exists() and not (dest / "context.md").exists():
         dest.mkdir(parents=True, exist_ok=True)
         shutil.copy2(context_src, dest / "context.md")
 
-    # Update agents
     agents_src = source / "agents"
     if agents_src.exists():
         agents_dest = dest / "agents"
+        if agents_dest.exists() and any(agents_dest.glob("*.md")):
+            return
         agents_dest.mkdir(parents=True, exist_ok=True)
         for agent_file in agents_src.glob("*.md"):
             shutil.copy2(agent_file, agents_dest / agent_file.name)

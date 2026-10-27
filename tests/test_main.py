@@ -1,5 +1,3 @@
-import sys
-import shutil
 from pathlib import Path
 from unittest.mock import patch
 
@@ -109,7 +107,8 @@ class TestInstallGlobal:
             assert result is True
             assert home_target.exists()
             md_files = list(home_target.glob("*.md"))
-            assert len(md_files) == 2
+            assert len(md_files) == 5
+            assert {p.stem for p in md_files} == {"orchestrator", "writer", "coder", "database", "dashboard-designer"}
 
     def test_no_agents_dir_returns_false(self, temp_empty_project):
         from main import install_global

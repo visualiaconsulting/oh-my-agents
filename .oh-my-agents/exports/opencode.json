@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "runtime": "opencode",
+  "profile": "go",
+  "files": {
+    ".opencode/agents/orchestrator.md": "ec11d2dd7d6472442c6c1f281c6f50fdeb0e3d5ffc50442249d843ed99dcddbd",
+    ".opencode/agents/writer.md": "6f948b799391419210c970f10c51ac2969dc49aec690ee2fb87cb3fc97f20819",
+    ".opencode/agents/coder.md": "33c8305030aaadf30e91bef3c89b18ed0962069f28f38f99ed8ff79bedec600e",
+    ".opencode/agents/database.md": "771604c54e47b02da20a13e1f8ee255bf03d9fb727e875524944d8febc8ad1cc",
+    ".opencode/agents/dashboard-designer.md": "cd567f6d9420b3e538f8133c7b4502e027b2bd76ff010caf66cd114f92a17490",
+    ".opencode/plan.json": "838b0b425991ce0d22fa58961186f138976f7d3773b5786d747f95c8e86d5554"
+  }
+}

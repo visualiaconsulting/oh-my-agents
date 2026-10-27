@@ -1,8 +1,8 @@
 """Tests for update_manager.py — version check and update mechanism."""
 
-import pytest
-from pathlib import Path
+from io import BytesIO
 from unittest.mock import patch, MagicMock
+from zipfile import ZipFile
 
 
 class TestGetCurrentVersion:
@@ -113,8 +113,6 @@ class TestMergeOpencodeDir:
         # Create existing data that must be preserved
         (dest / "sessions").mkdir(parents=True)
         (dest / "sessions" / "old.json").write_text("old session")
-        (dest / "agents").mkdir(parents=True)
-        (dest / "agents" / "old.md").write_text("old agent")
 
         _merge_opencode_dir(source, dest)
 
@@ -123,4 +121,67 @@ class TestMergeOpencodeDir:
         assert (dest / "agents" / "orchestrator.md").read_text() == "new agent"
         # Verify existing files were preserved
         assert (dest / "sessions" / "old.json").exists()
-        assert (dest / "agents" / "old.md").exists()
+
+    def test_existing_agent_collection_and_context_are_preserved(self, tmp_path):
+        from update_manager import _merge_opencode_dir
+
+        source = tmp_path / "source"
+        dest = tmp_path / "dest"
+        (source / "agents").mkdir(parents=True)
+        (dest / "agents").mkdir(parents=True)
+        (source / "agents" / "orchestrator.md").write_text("new framework rules")
+        (source / "agents" / "writer.md").write_text("new role")
+        (source / "context.md").write_text("new framework context")
+        (dest / "agents" / "orchestrator.md").write_text("custom instructions")
+        (dest / "agents" / "custom.md").write_text("custom agent")
+        (dest / "context.md").write_text("project decisions")
+
+        _merge_opencode_dir(source, dest)
+
+        assert (dest / "agents" / "orchestrator.md").read_text() == "custom instructions"
+        assert (dest / "agents" / "custom.md").read_text() == "custom agent"
+        assert not (dest / "agents" / "writer.md").exists()
+        assert (dest / "context.md").read_text() == "project decisions"
+
+
+def test_release_update_preserves_native_configuration_and_runtime_data(tmp_path):
+    from update_manager import run_update
+
+    protected_files = {
+        ".codex/config.toml": 'model = "my-custom-model"',
+        ".codex/agents/custom.toml": 'name = "custom"',
+        ".agents/skills/frontend-design/SKILL.md": "installed skill",
+        ".oh-my-agents/backups/export-1/config.toml": "original config",
+        ".oh-my-agents/active.json": '{"runtime": "codex"}',
+        ".venv/pyvenv.cfg": "local environment",
+        "AGENTS.md": "project instructions outside managed block",
+        ".opencode/agents/orchestrator.md": "my instructions",
+        ".opencode/context.md": "my decisions",
+        ".opencode/sessions/session.json": "my session",
+    }
+    for name, content in protected_files.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    archive = BytesIO()
+    with ZipFile(archive, "w") as zf:
+        for name in protected_files:
+            zf.writestr("oh-my-agents-9.0.0/" + name, "release default")
+        zf.writestr("oh-my-agents-9.0.0/.codex/agents/writer.toml", "new framework agent")
+        zf.writestr("oh-my-agents-9.0.0/.opencode/agents/writer.md", "new framework agent")
+        zf.writestr("oh-my-agents-9.0.0/main.py", "# updated source\n")
+        zf.writestr("oh-my-agents-9.0.0/VERSION", "9.0.0\n")
+    response = MagicMock()
+    response.iter_content.return_value = [archive.getvalue()]
+
+    with patch("update_manager.SYSTEM_ROOT", tmp_path), patch("requests.get", return_value=response):
+        ok, message = run_update("9.0.0")
+
+    assert ok, message
+    assert "--export --dry-run" in message
+    for name, content in protected_files.items():
+        assert (tmp_path / name).read_text(encoding="utf-8") == content
+    assert not (tmp_path / ".codex/agents/writer.toml").exists()
+    assert not (tmp_path / ".opencode/agents/writer.md").exists()
+    assert (tmp_path / "main.py").read_text() == "# updated source\n"
+    assert (tmp_path / "VERSION").read_text().strip() == "9.0.0"

@@ -11,9 +11,6 @@ from typing import Optional
 from utils import (
     get_skills_dir,
     get_opencode_dir,
-    safe_json_load,
-    safe_json_save,
-    truncate_text,
 )
 
 SKILLS_REGISTRY_URL = "https://skills.sh"
@@ -200,7 +197,7 @@ class SkillRegistry:
 
     def _install_from_skills_sh(self, identifier: str) -> bool:
         """Install a skill from skills.sh by downloading from GitHub.
-        
+
         Tries multiple URL patterns to find the skill file.
         """
         try:
@@ -221,18 +218,18 @@ class SkillRegistry:
         # 2. In skills/ directory as [skill_name].md
         # 3. In skills/[skill_name]/SKILL.md (neondatabase style)
         # 4. In plugins/*/skills/[skill_name]/SKILL.md (wshobson style)
-        
+
         base_github = f"https://raw.githubusercontent.com/{owner}/{repo}"
-        
+
         # We'll try both main and master branches
         branches = ["main", "master"]
-        
+
         patterns = [
             "{base}/{branch}/{name}.md",
             "{base}/{branch}/skills/{name}.md",
             "{base}/{branch}/skills/{name}/SKILL.md",
         ]
-        
+
         # Special case for wshobson-style plugins (requires searching, but we'll try common ones)
         common_plugins = ["python-development", "javascript-development", "backend-development", "developer-essentials"]
         for plugin in common_plugins:

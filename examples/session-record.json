@@ -1,0 +1,22 @@
+{
+  "summary": "Describe aquí el resultado observado de la tarea.",
+  "runtime": "codex",
+  "profile": "chatgpt",
+  "role": "orchestrator",
+  "model": "",
+  "status": "partial",
+  "task_id": "",
+  "parent_task_id": "",
+  "decisions": [],
+  "pending_tasks": [
+    "Reemplazar este ejemplo por los hechos reales antes de registrarlo."
+  ],
+  "evidence": [],
+  "checks": [
+    {
+      "name": "Comprobación pendiente",
+      "status": "not_run"
+    }
+  ],
+  "files_changed": []
+}

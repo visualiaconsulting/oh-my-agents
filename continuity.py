@@ -5,15 +5,12 @@ Provides the re-entry experience: when returning to a project,
 loads the last session state and generates context for the AI
 to understand what was happening and what needs to be done next.
 """
-import sys
 from pathlib import Path
 from typing import Optional
 
 from utils import (
     generate_project_hash,
     get_project_db_path,
-    get_current_git_branch,
-    is_auto_session_enabled,
     truncate_text,
     format_timestamp,
 )
@@ -22,20 +19,20 @@ from project_db import ProjectDB
 
 class ContinuityManager:
     """Manages project continuity across sessions.
-    
+
     Usage:
         cm = ContinuityManager(project_root)
-        
+
         # Get a re-entry prompt for the AI
         prompt = cm.get_reentry_prompt()
-        
+
         # Check if this is a known project with history
         if cm.has_history():
             print(cm.get_status_banner())
-        
+
         # Enable auto-session saving
         cm.enable_auto_session()
-        
+
         # Get project health status
         health = cm.get_project_health()
     """
@@ -74,11 +71,11 @@ class ContinuityManager:
 
     def get_reentry_prompt(self) -> str:
         """Generate a re-entry prompt for the AI agent.
-        
+
         This is the main function for project continuity. It returns
         a markdown-formatted summary of where the project was left off,
         including pending tasks, recent changes, and error state.
-        
+
         Returns empty string if no history exists.
         """
         if not self.has_history():
@@ -103,40 +100,40 @@ class ContinuityManager:
         lines = []
         lines.append("╔══════════════════════════════════════════╗")
         lines.append(f"║  Project: {state.get('project_name', 'unknown'):<30} ║")
-        
+
         branch = state.get('current_branch', '')
         if branch:
             lines.append(f"║  Branch:  {branch:<30} ║")
-        
+
         lines.append(f"║  Sessions: {state.get('total_sessions', 0):<3}  │  Errors: {state.get('total_errors', 0):<3}       ║")
-        
+
         last_active = state.get('last_active_at', 'never')
         lines.append(f"║  Last active: {last_active:<25} ║")
-        
+
         if last:
             pending = last.get('pending_tasks', [])
             if pending:
                 lines.append(f"║  Pending tasks: {len(pending):<2}                      ║")
                 for task in pending[:2]:
                     lines.append(f"║    • {truncate_text(str(task), 32):<32} ║")
-            
+
             files = last.get('files_changed', [])
             if files:
                 lines.append(f"║  Recent files ({len(files)}):               ║")
                 for f in files[:3]:
                     fname = f.get('filepath', str(f)) if isinstance(f, dict) else str(f)
                     lines.append(f"║    • {truncate_text(fname, 32):<32} ║")
-        
+
         lines.append("╚══════════════════════════════════════════╝")
         return "\n".join(lines)
 
     def get_project_health(self) -> dict:
         """Get a project health report.
-        
+
         Returns:
             dict with keys:
             - total_sessions: int
-            - total_errors: int  
+            - total_errors: int
             - total_files_changed: int
             - last_active: str (ISO timestamp or "never")
             - pending_tasks: int
@@ -162,7 +159,7 @@ class ContinuityManager:
 
         pending_count = len(last.get('pending_tasks', [])) if last else 0
         error_count = len(last.get('errors', [])) if last else 0
-        
+
         # Determine health
         if error_count > 5 or pending_count > 5:
             health = "needs_attention"
@@ -183,7 +180,7 @@ class ContinuityManager:
 
     def enable_auto_session(self) -> bool:
         """Enable automatic session saving for this project.
-        
+
         Creates the .opencode/.auto_session_enabled flag file.
         """
         try:
@@ -210,7 +207,7 @@ class ContinuityManager:
 
     def inject_context_to_file(self) -> bool:
         """Inject session continuity context into .opencode/context.md.
-        
+
         Returns True if context.md was updated, False otherwise.
         """
         if not self.has_history():

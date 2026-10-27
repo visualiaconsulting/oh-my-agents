@@ -6,9 +6,7 @@ Covers:
 - ContinuityManager: Project re-entry, status banners, health reports
 - Utils: Hash generation, log parsing, auto-session flags, git branch
 """
-import os
 import sys
-import json
 import shutil
 import tempfile
 import pytest
